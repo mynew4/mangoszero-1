@@ -588,6 +588,8 @@ class WorldObject : public Object
         bool IsInBackInMap(WorldObject const* target, float distance, float arc = M_PI) const;
         bool IsInFront(WorldObject const* target, float distance, float arc = M_PI) const;
         bool IsInBack(WorldObject const* target, float distance, float arc = M_PI) const;
+        bool IsFacingTargetsBack(const WorldObject* target, float arc = M_PI_F) const;
+        bool IsFacingTargetsFront(const WorldObject* target, float arc = M_PI_F) const;
 
         virtual void CleanupsBeforeDelete();                // used in destructor or explicitly before mass creature delete to remove cross-references to already deleted units
 
