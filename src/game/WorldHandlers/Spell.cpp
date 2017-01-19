@@ -2593,7 +2593,7 @@ void Spell::prepare(SpellCastTargets const* targets, Aura* triggeredByAura)
     }
     else
     {
-        if (m_timer == 0)
+        if (m_timer == 0 || m_spellInfo->Id == 7720)// Meeting Stone Fix - Instant Summon effect
             cast(true);
     }
 }
@@ -3003,6 +3003,9 @@ void Spell::SendSpellCooldown()
 
 void Spell::update(uint32 difftime)
 {
+	// Meeting Stone Fix //
+	static const int meetStoneSum = 23598;//Meeting stone summon
+	
     // update pointers based at it's GUIDs
     UpdatePointers();
 
@@ -3015,20 +3018,22 @@ void Spell::update(uint32 difftime)
     // check for target going invisiblity/fake death
     if (Unit* target = m_targets.getUnitTarget())
     {
-        if (!target->IsVisibleForOrDetect(m_caster, m_caster, true) || target->HasAuraType(SPELL_AURA_FEIGN_DEATH))
-        {
-            if (m_caster->GetTargetGuid() == target->GetObjectGuid())
-                m_caster->SetTargetGuid(ObjectGuid());
-            cancel();
-            return;
-        }
+		// Meeting Stone Fix //
+		if (meetStoneSum != m_spellInfo->Id && (!target->IsVisibleForOrDetect(m_caster, m_caster, true) || target->HasAuraType(SPELL_AURA_FEIGN_DEATH)))
+		{
+			if (m_caster->GetTargetGuid() == target->GetObjectGuid())
+				m_caster->SetTargetGuid(ObjectGuid());
+			cancel();
+			return;
+		}
     }
 
 
     if (m_targets.getUnitTarget() && (m_targets.getUnitTarget() != m_caster) && IsSingleTargetSpell(m_spellInfo) &&
         !IsNextMeleeSwingSpell() && !IsAutoRepeat() && !m_IsTriggeredSpell)
     {
-        if (!m_caster->IsWithinLOSInMap(m_targets.getUnitTarget()))
+		// Meeting Stone Fix //
+        if (!m_caster->IsWithinLOSInMap(m_targets.getUnitTarget()) && meetStoneSum != m_spellInfo->Id)
         {
             cancel();
             return;
@@ -4283,6 +4288,10 @@ SpellCastResult Spell::CheckCast(bool strict)
 
         if (non_caster_target)
         {
+			// Meeting Stone Fix 
+			if (m_spellInfo->Id == 23598)
+				{ return SPELL_CAST_OK; }
+			
             // Not allow casting on flying player
             if (target->IsTaxiFlying())
                 { return SPELL_FAILED_BAD_TARGETS; }
