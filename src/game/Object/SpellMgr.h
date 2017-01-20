@@ -190,6 +190,35 @@ inline bool IsElementalShield(SpellEntry const* spellInfo)
     return (spellInfo->SpellFamilyFlags & UI64LIT(0x00000000400)) || spellInfo->Id == 23552;
 }
 
+inline bool IsSpellEffectTriggerSpell(const SpellEntry* entry, SpellEffectIndex effIndex)
+{
+    if (!entry)
+        return false;
+
+    switch (entry->Effect[effIndex])
+    {
+        case SPELL_EFFECT_TRIGGER_MISSILE:
+        case SPELL_EFFECT_TRIGGER_SPELL:
+            return true;
+    }
+    return false;
+}
+
+inline bool IsSpellEffectTriggerSpellByAura(const SpellEntry* entry, SpellEffectIndex effIndex)
+{
+    if (!entry || !IsAuraApplyEffect(entry, effIndex))
+        return false;
+
+    switch (entry->EffectApplyAuraName[effIndex])
+    {
+        case SPELL_AURA_PERIODIC_TRIGGER_SPELL:
+        case SPELL_AURA_PROC_TRIGGER_SPELL:
+        case SPELL_AURA_PROC_TRIGGER_DAMAGE:
+            return true;
+    }
+    return false;
+}
+
 int32 CompareAuraRanks(uint32 spellId_1, uint32 spellId_2);
 
 // order from less to more strict
