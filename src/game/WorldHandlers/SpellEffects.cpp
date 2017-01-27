@@ -1479,6 +1479,12 @@ void Spell::EffectTriggerSpell(SpellEffectIndex eff_idx)
                 { return; }
         }
     }
+    else
+    {
+        // Note: not exist spells with weapon req. and IsSpellHaveCasterSourceTargets == true
+        // so this just for speedup places in else
+        caster = IsSpellWithCasterSourceTargetsOnly(spellInfo) ? unitTarget : m_caster;
+    }
 
     caster->CastSpell(unitTarget, spellInfo, true, m_CastItem, NULL, m_originalCasterGUID, m_spellInfo);
 }
@@ -2333,7 +2339,7 @@ void Spell::EffectDispel(SpellEffectIndex eff_idx)
                 if (!holder->IsPositive())
                     { positive = false; }
                 else
-                    { positive = (holder->GetSpellProto()->AttributesEx & SPELL_ATTR_NEGATIVE) == 0; }
+                    { positive = (holder->GetSpellProto()->AttributesEx & SPELL_ATTR_EX_NEGATIVE) == 0; }
 
                 // do not remove positive auras if friendly target
                 //               negative auras if non-friendly target
@@ -2862,7 +2868,7 @@ void Spell::EffectEnchantItemTmp(SpellEffectIndex eff_idx)
     uint32 duration;
 
     // shaman family enchantments
-    if (m_spellInfo->Attributes == (SPELL_ATTR_TARGET_MAINHAND_ITEM | SPELL_ATTR_NOT_SHAPESHIFT | SPELL_ATTR_DONT_AFFECT_SHEATH_STATE))
+    if (m_spellInfo->Attributes == (SPELL_ATTR_UNK9 | SPELL_ATTR_NOT_SHAPESHIFT | SPELL_ATTR_UNK18))
         { duration = 300; }                                     // 5 mins
     // imbue enchantments except Imbue Weapon - Beastslayer
     else if (m_spellInfo->SpellIconID == 241 && m_spellInfo->Id != 7434)
@@ -2871,7 +2877,7 @@ void Spell::EffectEnchantItemTmp(SpellEffectIndex eff_idx)
     else if (m_spellInfo->Id == 28891 && m_spellInfo->Id == 28898)
         { duration = 3600; }                                    // 1 hour
     // some fishing pole bonuses
-    else if (m_spellInfo->HasAttribute(SPELL_ATTR_HIDDEN_CLIENTSIDE))
+    else if (m_spellInfo->HasAttribute(SPELL_ATTR_HIDE_SPELL))
         { duration = 600; }                                     // 10 mins
     // default case
     else
@@ -4786,7 +4792,7 @@ void Spell::EffectCharge(SpellEffectIndex /*eff_idx*/)
     m_caster->MonsterMoveWithSpeed(x, y, z, 24.f, true, true);
 
     // not all charge effects used in negative spells
-    if (unitTarget != m_caster && !IsPositiveSpell(m_spellInfo->Id, m_caster, unitTarget))
+    if (unitTarget != m_caster && !IsPositiveSpell(m_spellInfo->Id))
         { m_caster->Attack(unitTarget, true); }
 }
 

@@ -40,43 +40,54 @@
 
 void WorldSession::HandleMeetingStoneJoinOpcode(WorldPacket& recv_data)
 {
-	// Meeting stone change to summon party member
-	ObjectGuid guid;
+    ObjectGuid guid;
 
-	recv_data >> guid;
+    recv_data >> guid;
 
-	DEBUG_LOG("WORLD: Recvd CMSG_MEETINGSTONE_JOIN Message guid: %s", guid.GetString().c_str());
+    DEBUG_LOG("WORLD: Recvd CMSG_MEETINGSTONE_JOIN Message guid: %s", guid.GetString().c_str());
 
-	// ignore for remote control state
-	if (!_player->IsSelfMover())
-	{
-		return;
-	}
+    // ignore for remote control state
+    if (!_player->IsSelfMover())
+        { return; }
 
-	GameObject *obj = GetPlayer()->GetMap()->GetGameObject(guid);
+    GameObject *obj = GetPlayer()->GetMap()->GetGameObject(guid);
 
-	if (!obj)
-	{
-		return;
-	}
+    if (!obj)
+        { return; }
 
-	// Never expect this opcode for some type GO's
-	if (obj->GetGoType() != GAMEOBJECT_TYPE_MEETINGSTONE)
-	{
-		sLog.outError("HandleMeetingStoneJoinOpcode: CMSG_MEETINGSTONE_JOIN for not allowed GameObject type %u (Entry %u), didn't expect this to happen.", obj->GetGoType(), obj->GetEntry());
-		return;
-	}
-	
-	// Do some checks
-	if (Group* grp = _player->GetGroup())
-	{
-		if (Player* targetPlayer = ObjectAccessor::FindPlayer(_player->GetSelectionGuid()))
-		{
-			if (targetPlayer->IsInSameRaidWith(_player) || targetPlayer->IsInSameGroupWith(_player)) {
-				_player->CastSpell(targetPlayer, 23598, false);// Summoning Stone Effect = 23598 // Instant effect = 7720
-			}
-		}
-	}
+    // Never expect this opcode for some type GO's
+    if (obj->GetGoType() != GAMEOBJECT_TYPE_MEETINGSTONE)
+    {
+        sLog.outError("HandleMeetingStoneJoinOpcode: CMSG_MEETINGSTONE_JOIN for not allowed GameObject type %u (Entry %u), didn't expect this to happen.", obj->GetGoType(), obj->GetEntry());
+        return;
+    }
+
+    if (Group* grp = _player->GetGroup())
+    {
+        if (!grp->IsLeader(_player->GetObjectGuid()))
+        {
+            SendMeetingstoneFailed(MEETINGSTONE_FAIL_PARTYLEADER);
+
+            return;
+        }
+
+        if (grp->isRaidGroup())
+        {
+            SendMeetingstoneFailed(MEETINGSTONE_FAIL_RAID_GROUP);
+            return;
+        }
+
+        if (grp->IsFull())
+        {
+            SendMeetingstoneFailed(MEETINGSTONE_FAIL_FULL_GROUP);
+            return;
+        }
+    }
+
+
+   GameObjectInfo const* gInfo = ObjectMgr::GetGameObjectInfo(obj->GetEntry());
+
+   sLFGMgr.AddToQueue(_player, gInfo->meetingstone.areaID);
 }
 
 void WorldSession::HandleMeetingStoneLeaveOpcode(WorldPacket& /*recv_data*/)

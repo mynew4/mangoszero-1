@@ -381,12 +381,7 @@ void WorldSession::HandleCancelAuraOpcode(WorldPacket& recvPacket)
     if (IsPassiveSpell(spellInfo))
         { return; }
 
-    SpellAuraHolder* holder = _player->GetSpellAuraHolder(spellId);
-
-    if (!holder)
-        return;
-
-    if (!IsPositiveSpell(spellId, holder->GetCaster(), _player))
+    if (!IsPositiveSpell(spellId))
     {
         // ignore for remote control state
         if (!_player->IsSelfMover())
@@ -419,6 +414,8 @@ void WorldSession::HandleCancelAuraOpcode(WorldPacket& recvPacket)
                 { _player->InterruptSpell(CURRENT_CHANNELED_SPELL); }
         return;
     }
+
+    SpellAuraHolder* holder = _player->GetSpellAuraHolder(spellId);
 
     // not own area auras can't be cancelled (note: maybe need to check for aura on holder and not general on spell)
     if (holder && holder->GetCasterGuid() != _player->GetObjectGuid() && HasAreaAuraEffect(holder->GetSpellProto()))

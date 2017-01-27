@@ -33,10 +33,6 @@
 #include "SpellAuraDefines.h"
 #include "DBCStructure.h"
 #include "DBCStores.h"
-#include "DynamicObject.h"
-#include "GameObject.h"
-#include "Corpse.h"
-#include "Unit.h"
 
 #include "Utilities/UnorderedMapSet.h"
 
@@ -113,7 +109,6 @@ inline bool IsAuraApplyEffect(SpellEntry const* spellInfo, SpellEffectIndex effe
     switch (spellInfo->Effect[effecIdx])
     {
         case SPELL_EFFECT_APPLY_AURA:
-        case SPELL_EFFECT_PERSISTENT_AREA_AURA:
         case SPELL_EFFECT_APPLY_AREA_AURA_PARTY:
         case SPELL_EFFECT_APPLY_AREA_AURA_PET:
             return true;
@@ -190,35 +185,6 @@ inline bool IsElementalShield(SpellEntry const* spellInfo)
     return (spellInfo->SpellFamilyFlags & UI64LIT(0x00000000400)) || spellInfo->Id == 23552;
 }
 
-inline bool IsSpellEffectTriggerSpell(const SpellEntry* entry, SpellEffectIndex effIndex)
-{
-    if (!entry)
-        return false;
-
-    switch (entry->Effect[effIndex])
-    {
-        case SPELL_EFFECT_TRIGGER_MISSILE:
-        case SPELL_EFFECT_TRIGGER_SPELL:
-            return true;
-    }
-    return false;
-}
-
-inline bool IsSpellEffectTriggerSpellByAura(const SpellEntry* entry, SpellEffectIndex effIndex)
-{
-    if (!entry || !IsAuraApplyEffect(entry, effIndex))
-        return false;
-
-    switch (entry->EffectApplyAuraName[effIndex])
-    {
-        case SPELL_AURA_PERIODIC_TRIGGER_SPELL:
-        case SPELL_AURA_PROC_TRIGGER_SPELL:
-        case SPELL_AURA_PROC_TRIGGER_DAMAGE:
-            return true;
-    }
-    return false;
-}
-
 int32 CompareAuraRanks(uint32 spellId_1, uint32 spellId_2);
 
 // order from less to more strict
@@ -252,6 +218,11 @@ inline bool IsNonCombatSpell(SpellEntry const* spellInfo)
 {
     return spellInfo->HasAttribute(SPELL_ATTR_CANT_USED_IN_COMBAT);
 }
+
+bool IsPositiveSpell(uint32 spellId);
+bool IsPositiveSpell(SpellEntry const* spellproto);
+bool IsPositiveEffect(SpellEntry const* spellInfo, SpellEffectIndex effIndex);
+bool IsPositiveTarget(uint32 targetA, uint32 targetB);
 
 bool IsExplicitPositiveTarget(uint32 targetA);
 bool IsExplicitNegativeTarget(uint32 targetA);
@@ -435,305 +406,6 @@ inline bool IsOnlySelfTargeting(SpellEntry const* spellInfo)
     return true;
 }
 
-inline bool IsScriptTarget(uint32 target)
-{
-    switch (target)
-    {
-    case TARGET_SCRIPT:
-    case TARGET_SCRIPT_COORDINATES:
-    case TARGET_FOCUS_OR_SCRIPTED_GAMEOBJECT:
-    case TARGET_AREAEFFECT_INSTANT:
-    case TARGET_AREAEFFECT_CUSTOM:
-    case TARGET_AREAEFFECT_GO_AROUND_SOURCE:
-    case TARGET_AREAEFFECT_GO_AROUND_DEST:
-    case TARGET_NARROW_FRONTAL_CONE:
-        return true;
-    default:
-        break;
-    }
-    return false;
-}
-
-inline bool IsNeutralTarget(uint32 target)
-{
-    // This is an exhaustive list for demonstrativeness and global search reasons.
-    // Also includes unknown targets, so we wont forget about them easily.
-    // TODO: We need to research the unknown targets and list them under their proper category in the future.
-    switch (target)
-    {
-    case TARGET_NONE:
-    case TARGET_RANDOM_UNIT_CHAIN_IN_AREA:
-    case TARGET_INNKEEPER_COORDINATES:
-    case TARGET_11:
-    case TARGET_TABLE_X_Y_Z_COORDINATES:
-    case TARGET_EFFECT_SELECT:
-    case TARGET_CASTER_COORDINATES:
-    case TARGET_GAMEOBJECT:
-    case TARGET_DUELVSPLAYER:
-    case TARGET_GAMEOBJECT_ITEM:
-    case TARGET_29:
-    case TARGET_TOTEM_EARTH:
-    case TARGET_TOTEM_WATER:
-    case TARGET_TOTEM_AIR:
-    case TARGET_TOTEM_FIRE:
-    case TARGET_DYNAMIC_OBJECT_FRONT:
-    case TARGET_DYNAMIC_OBJECT_BEHIND:
-    case TARGET_DYNAMIC_OBJECT_LEFT_SIDE:
-    case TARGET_DYNAMIC_OBJECT_RIGHT_SIDE:
-    case TARGET_58:
-    case TARGET_DUELVSPLAYER_COORDINATES:
-        return true;
-    default:
-        break;
-    }
-    return false;
-}
-
-inline bool IsFriendlyTarget(uint32 target)
-{
-    // This is an exhaustive list for demonstrativeness and global search reasons.
-    switch (target)
-    {
-    case TARGET_SELF:
-    case TARGET_RANDOM_FRIEND_CHAIN_IN_AREA:
-    case TARGET_PET:
-    case TARGET_ALL_PARTY_AROUND_CASTER:
-    case TARGET_SINGLE_FRIEND:
-    case TARGET_MASTER:
-    case TARGET_ALL_FRIENDLY_UNITS_AROUND_CASTER:
-    case TARGET_ALL_FRIENDLY_UNITS_IN_AREA:
-    case TARGET_MINION:
-    case TARGET_ALL_PARTY:
-    case TARGET_ALL_PARTY_AROUND_CASTER_2:
-    case TARGET_SINGLE_PARTY:
-    case TARGET_AREAEFFECT_PARTY:
-    case TARGET_SELF_FISHING:
-    case TARGET_CHAIN_HEAL:
-    case TARGET_ALL_RAID_AROUND_CASTER:
-    case TARGET_SINGLE_FRIEND_2:
-    case TARGET_FRIENDLY_FRONTAL_CONE:
-    case TARGET_AREAEFFECT_PARTY_AND_CLASS:
-        return true;
-    default:
-        break;
-    }
-    return false;
-}
-
-inline bool IsHostileTarget(uint32 target)
-{
-    // This is an exhaustive list for demonstrativeness and global search reasons.
-    switch (target)
-    {
-    case TARGET_RANDOM_ENEMY_CHAIN_IN_AREA:
-    case TARGET_CHAIN_DAMAGE:
-    case TARGET_ALL_ENEMY_IN_AREA:
-    case TARGET_ALL_ENEMY_IN_AREA_INSTANT:
-    case TARGET_IN_FRONT_OF_CASTER:
-    case TARGET_ALL_ENEMY_IN_AREA_CHANNELED:
-    case TARGET_ALL_HOSTILE_UNITS_AROUND_CASTER:
-    case TARGET_CURRENT_ENEMY_COORDINATES:
-    case TARGET_LARGE_FRONTAL_CONE:
-        return true;
-    default:
-        break;
-    }
-    return false;
-}
-
-inline bool IsEffectTargetScript(uint32 targetA, uint32 targetB)
-{
-    return (IsScriptTarget(targetA) || IsScriptTarget(targetB));
-}
-
-inline bool IsEffectTargetNeutral(uint32 targetA, uint32 targetB)
-{
-    return (IsNeutralTarget(targetA) && IsNeutralTarget(targetB));
-}
-
-inline bool IsEffectTargetPositive(uint32 targetA, uint32 targetB)
-{
-    return (IsFriendlyTarget(targetA) || IsFriendlyTarget(targetB));
-}
-
-inline bool IsEffectTargetNegative(uint32 targetA, uint32 targetB)
-{
-    return (IsHostileTarget(targetA) || IsHostileTarget(targetB));
-}
-
-inline bool IsNeutralEffectTargetPositive(uint32 etarget, const WorldObject* caster = nullptr, const WorldObject* target = nullptr)
-{
-    switch (etarget)
-    {
-    case TARGET_RANDOM_UNIT_CHAIN_IN_AREA:
-    case TARGET_11:
-    case TARGET_DUELVSPLAYER:
-    case TARGET_29:
-    case TARGET_58:
-        break;
-    default:
-        return true; // Some gameobjects or coords, who cares
-    }
-    if (!target || (target->GetTypeId() != TYPEID_PLAYER && target->GetTypeId() != TYPEID_UNIT))
-        return true;
-
-    if (caster == target)
-        return true; // Early self-cast detection
-
-    if (!caster)
-        return true; // TODO: Nice to have additional in-depth research for default value for nullcaster
-
-    const Unit* utarget = (const Unit*)target;
-    switch (caster->GetTypeId())
-    {
-    case TYPEID_UNIT:
-    case TYPEID_PLAYER:
-        return ((const Unit*)caster)->IsFriendlyTo(utarget);
-    case TYPEID_GAMEOBJECT:
-        return ((const GameObject*)caster)->IsFriendlyTo(utarget);
-    case TYPEID_DYNAMICOBJECT:
-        return ((const DynamicObject*)caster)->IsFriendlyTo(utarget);
-    case TYPEID_CORPSE:
-        return ((const Corpse*)caster)->IsFriendlyTo(utarget);
-    default:
-        break;
-    }
-    return true;
-}
-
-inline bool IsPositiveEffectTargetMode(const SpellEntry* spellproto, SpellEffectIndex effIndex, const WorldObject* caster = nullptr, const WorldObject* target = nullptr)
-{
-    const uint32 a = spellproto->EffectImplicitTargetA[effIndex];
-    const uint32 b = spellproto->EffectImplicitTargetB[effIndex];
-    if (a == 0 && b == 0)
-        return true;
-    else if (IsEffectTargetPositive(a, b))
-        return true;
-    else if (IsEffectTargetNegative(a, b))
-    {
-        // Workaround: Passive talents with negative target modes are getting removed by ice block and similar effects
-        // TODO: Fix removal of passives in appropriate places and remove the check below afterwards
-        if (spellproto->HasAttribute(SPELL_ATTR_PASSIVE))
-            return true;
-        return false;
-    }
-    else if (IsEffectTargetScript(a, b))
-        return true;
-    else if (IsEffectTargetNeutral(a, b))
-        return (IsPointEffectTarget(Targets(b ? b : a)) || IsNeutralEffectTargetPositive((b ? b : a), caster, target));
-
-    // If we ever get to this point, we have unhandled target. Gotta say something about it.
-    if (spellproto && spellproto->Effect[effIndex])
-        DETAIL_LOG("IsPositiveEffect: Spell %u's effect %u has unhandled targets (A:%u B:%u)", spellproto->Id, effIndex,
-            spellproto->EffectImplicitTargetA[effIndex], spellproto->EffectImplicitTargetB[effIndex]);
-    return true;
-}
-
-inline bool IsPositiveEffect(const SpellEntry* spellproto, SpellEffectIndex effIndex, const WorldObject* caster = nullptr, const WorldObject* target = nullptr)
-{
-    switch (spellproto->Effect[effIndex])
-    {
-    case SPELL_EFFECT_SEND_TAXI:                // Some NPCs that send taxis are neutral, so target mode fails
-    case SPELL_EFFECT_QUEST_COMPLETE:           // TODO: Spells with these effects should be casted by a proper caster to meet target mode.
-    case SPELL_EFFECT_TELEPORT_UNITS:           // Until then switch makes them all positive
-    case SPELL_EFFECT_CREATE_ITEM:
-    case SPELL_EFFECT_SUMMON_CHANGE_ITEM:
-        return true;
-        break;
-    case SPELL_EFFECT_APPLY_AREA_AURA_ENEMY:    // Always hostile effects
-        return false;
-        break;
-    case SPELL_EFFECT_DUMMY:
-        // some explicitly required dummy effect sets
-        switch (spellproto->Id)
-        {
-        case 28441:                                 // AB Effect 000
-            return false;
-        case 18153:                                 // Kodo Kombobulator
-            return true;
-        default:
-            break;
-        }
-        break;
-        // Known exceptions:
-    case SPELL_EFFECT_APPLY_AURA:
-    case SPELL_EFFECT_APPLY_AREA_AURA_FRIEND:
-    {
-        switch (spellproto->EffectApplyAuraName[effIndex])
-        {
-        case SPELL_AURA_DUMMY:
-        {
-            // dummy aura can be positive or negative dependent from casted spell
-            switch (spellproto->Id)
-            {
-            case 13139:                         // net-o-matic special effect
-                return false;
-            default:
-                break;
-            }
-            break;
-        }
-        default:
-            break;
-        }
-        break;
-    }
-    default:
-        break;
-    }
-
-    // Attributes check first: always negative if forced
-    // Do not move: this check needs to be present there to let override above it happen for spells that need it.
-    if (spellproto->HasAttribute(SPELL_ATTR_NEGATIVE))
-        return false;
-
-    // Generic effect check: negative on negative targets, positive on positive targets
-    return IsPositiveEffectTargetMode(spellproto, effIndex, caster, target);
-}
-
-inline bool IsPositiveAuraEffect(const SpellEntry* entry, SpellEffectIndex effIndex, const WorldObject* caster = nullptr, const WorldObject* target = nullptr)
-{
-    return (IsAuraApplyEffect(entry, effIndex) && IsPositiveEffect(entry, effIndex, caster, target));
-}
-
-inline bool IsPositiveSpellTargetMode(const SpellEntry* entry, const WorldObject* caster = nullptr, const WorldObject* target = nullptr)
-{
-    if (!entry)
-        return false;
-    // spells with at least one negative effect are considered negative
-    // some self-applied spells have negative effects but in self casting case negative check ignored.
-    for (int i = 0; i < MAX_EFFECT_INDEX; ++i)
-        if (entry->Effect[i] && !IsPositiveEffectTargetMode(entry, SpellEffectIndex(i), caster, target))
-            return false;
-    return true;
-}
-
-inline bool IsPositiveSpellTargetMode(uint32 spellId, const WorldObject* caster, const WorldObject* target)
-{
-    if (!spellId)
-        return false;
-    return IsPositiveSpellTargetMode(sSpellStore.LookupEntry(spellId), caster, target);
-}
-
-inline bool IsPositiveSpell(const SpellEntry* entry, const WorldObject* caster = nullptr, const WorldObject* target = nullptr)
-{
-    if (!entry)
-        return false;
-    // spells with at least one negative effect are considered negative
-    // some self-applied spells have negative effects but in self casting case negative check ignored.
-    for (int i = 0; i < MAX_EFFECT_INDEX; ++i)
-        if (entry->Effect[i] && !IsPositiveEffect(entry, SpellEffectIndex(i), caster, target))
-            return false;
-    return true;
-}
-
-inline bool IsPositiveSpell(uint32 spellId, const WorldObject* caster = nullptr, const WorldObject* target = nullptr)
-{
-    if (!spellId)
-        return false;
-    return IsPositiveSpell(sSpellStore.LookupEntry(spellId), caster, target);
-}
-
 inline bool IsDispelSpell(SpellEntry const* spellInfo)
 {
     return spellInfo->HasSpellEffect(SPELL_EFFECT_DISPEL);
@@ -763,7 +435,7 @@ inline bool IsChanneledSpell(SpellEntry const* spellInfo)
 
 inline bool IsNeedCastSpellAtFormApply(SpellEntry const* spellInfo, ShapeshiftForm form)
 {
-    if ((!spellInfo->HasAttribute(SPELL_ATTR_PASSIVE) && !spellInfo->HasAttribute(SPELL_ATTR_HIDDEN_CLIENTSIDE)) || !form)
+    if ((!spellInfo->HasAttribute(SPELL_ATTR_PASSIVE) && !spellInfo->HasAttribute(SPELL_ATTR_HIDE_SPELL)) || !form)
         { return false; }
 
     // passive spells with SPELL_ATTR_EX2_NOT_NEED_SHAPESHIFT are already active without shapeshift, do no recast!
@@ -777,12 +449,6 @@ inline bool IsNeedCastSpellAtOutdoor(SpellEntry const* spellInfo)
     return (spellInfo->HasAttribute(SPELL_ATTR_OUTDOORS_ONLY) && spellInfo->HasAttribute(SPELL_ATTR_PASSIVE));
 }
 
-inline bool IsReflectableSpell(SpellEntry const* spellInfo)
-{
-    return spellInfo->DmgClass == SPELL_DAMAGE_CLASS_MAGIC && !spellInfo->HasAttribute(SPELL_ATTR_ABILITY)
-        && !spellInfo->HasAttribute(SPELL_ATTR_EX_CANT_BE_REFLECTED) && !spellInfo->HasAttribute(SPELL_ATTR_UNAFFECTED_BY_INVULNERABILITY)
-        && !spellInfo->HasAttribute(SPELL_ATTR_PASSIVE) && !IsPositiveSpell(spellInfo);
-}
 
 inline bool NeedsComboPoints(SpellEntry const* spellInfo)
 {

@@ -332,7 +332,24 @@ Spell::Spell(Unit* caster, SpellEntry const* info, bool triggered, ObjectGuid or
     // determine reflection
     m_canReflect = false;
 
-    m_canReflect = IsReflectableSpell(m_spellInfo);
+    if (m_spellInfo->DmgClass == SPELL_DAMAGE_CLASS_MAGIC && !m_spellInfo->HasAttribute(SPELL_ATTR_EX2_CANT_REFLECTED))
+    {
+        for (int j = 0; j < MAX_EFFECT_INDEX; ++j)
+        {
+            if (m_spellInfo->Effect[j] == 0)
+                { continue; }
+
+            if (!IsPositiveTarget(m_spellInfo->EffectImplicitTargetA[j], m_spellInfo->EffectImplicitTargetB[j]))
+                { m_canReflect = true; }
+            else
+                { m_canReflect = m_spellInfo->HasAttribute(SPELL_ATTR_EX_NEGATIVE); }
+
+            if (m_canReflect)
+                { continue; }
+            else
+                { break; }
+        }
+    }
 
     CleanupTargetList();
 }
@@ -939,43 +956,47 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
 
     if (missInfo == SPELL_MISS_NONE)                        // In case spell hit target, do all effect on that target
         { DoSpellHitOnUnit(unit, mask); }
-    else if (missInfo != SPELL_MISS_EVADE)
+    else if (missInfo == SPELL_MISS_REFLECT)                // In case spell reflect from target, do all effect on caster (if hit)
     {
-        if (missInfo == SPELL_MISS_REFLECT)                // In case spell reflect from target, do all effect on caster (if hit)
+        if (target->reflectResult == SPELL_MISS_NONE)       // If reflected spell hit caster -> do all effect on him
         {
-            if (target->reflectResult == SPELL_MISS_NONE)       // If reflected spell hit caster -> do all effect on him
-            {
-                DoSpellHitOnUnit(m_caster, mask, true);
-                unitTarget = m_caster;
-            }
+            DoSpellHitOnUnit(m_caster, mask, true);
+            unitTarget = m_caster;
 
             if (m_caster->GetTypeId() == TYPEID_UNIT)
                 m_caster->ToCreature()->LowerPlayerDamageReq(target->damage);
         }
-        // Failed hostile spell hits count as attack made against target (if detected)
-        if (real_caster && real_caster != unit)
+    }
+    else                                                    // in 1.12.1 we need explicit miss info
+    {
+        if (real_caster)
+        { 
+            // Warrior's execute must be returned as 20647 spell result since the client only displays info when receiving this id.
+            // Done here because must be based on MeleeSpellHitResult of spell id's 5308/20658/20660/20661/20662.
+            if(m_spellInfo->SpellFamilyName == SPELLFAMILY_WARRIOR && m_spellInfo->IsFitToFamilyMask(0x0000000020000000))
+                { real_caster->SendSpellMiss(unit, 20647, missInfo); }
+            else
+                { real_caster->SendSpellMiss(unit, m_spellInfo->Id, missInfo); }
+        }
+
+        if (missInfo == SPELL_MISS_MISS || missInfo == SPELL_MISS_RESIST)
         {
-            if (!m_spellInfo->HasAttribute(SPELL_ATTR_EX3_NO_INITIAL_AGGRO) &&
-                !m_spellInfo->HasAttribute(SPELL_ATTR_EX_NO_THREAT) &&
-                !IsPositiveSpell(m_spellInfo->Id, real_caster, unit) &&
-                m_caster->IsVisibleForOrDetect(unit, unit, false))
+            if (real_caster && real_caster != unit)
             {
-                if (!unit->IsInCombat() && unit->GetTypeId() != TYPEID_PLAYER && ((Creature*)unit)->AI())
-                    ((Creature*)unit)->AI()->AttackedBy(real_caster);
+                // can cause back attack (if detected)
+                if (!m_spellInfo->HasAttribute(SPELL_ATTR_EX3_NO_INITIAL_AGGRO) && !IsPositiveSpell(m_spellInfo->Id) &&
+                    m_caster->IsVisibleForOrDetect(unit, unit, false))
+                {
+                    if (!unit->IsInCombat() && unit->GetTypeId() != TYPEID_PLAYER && ((Creature*)unit)->AI())
+                        { ((Creature*)unit)->AI()->AttackedBy(real_caster); }
 
-                unit->AddThreat(real_caster);
-                unit->SetInCombatWith(real_caster);
-                real_caster->SetInCombatWith(unit);
-
-                if (Player* attackedPlayer = unit->GetCharmerOrOwnerPlayerOrPlayerItself())
-                    real_caster->SetContestedPvP(attackedPlayer);
+                    unit->AddThreat(real_caster);
+                    unit->SetInCombatWith(real_caster);
+                    real_caster->SetInCombatWith(unit);
+                }
             }
         }
     }
-
-    // In 1.12.1 we need explicit miss info
-    if (real_caster && missInfo && missInfo != SPELL_MISS_REFLECT)
-        real_caster->SendSpellMiss(unit, m_spellInfo->Id, missInfo);
 
     // All calculated do it!
     // Do healing and triggers
@@ -1149,10 +1170,8 @@ void Spell::DoSpellHitOnUnit(Unit* unit, uint32 effectMask, bool isReflected)
             if (!m_spellInfo->HasAttribute(SPELL_ATTR_EX_NOT_BREAK_STEALTH))
                 { unit->RemoveSpellsCausingAura(SPELL_AURA_MOD_STEALTH); }
 
-            // Hostile spell hits count as attack made against target (if detected), stealth removed at Spell::cast if spell break it
-            if (!m_spellInfo->HasAttribute(SPELL_ATTR_EX3_NO_INITIAL_AGGRO) &&
-                !m_spellInfo->HasAttribute(SPELL_ATTR_EX_NO_THREAT) &&
-                !IsPositiveSpell(m_spellInfo->Id, realCaster, unit) &&
+            // can cause back attack (if detected), stealth removed at Spell::cast if spell break it
+            if (!m_spellInfo->HasAttribute(SPELL_ATTR_EX3_NO_INITIAL_AGGRO) && !IsPositiveSpell(m_spellInfo->Id) &&
                 m_caster->IsVisibleForOrDetect(unit, unit, false))
             {
                 // use speedup check to avoid re-remove after above lines
@@ -1197,7 +1216,7 @@ void Spell::DoSpellHitOnUnit(Unit* unit, uint32 effectMask, bool isReflected)
         else
         {
             // for delayed spells ignore negative spells (after duel end) for friendly targets
-            if (speed > 0.0f && !IsPositiveSpell(m_spellInfo->Id, realCaster, unit))
+            if (speed > 0.0f && !IsPositiveSpell(m_spellInfo->Id))
             {
                 realCaster->SendSpellMiss(unit, m_spellInfo->Id, SPELL_MISS_EVADE);
                 ResetEffectDamageAndHeal();
@@ -2408,8 +2427,8 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
                     break;
                 case SPELL_EFFECT_APPLY_AREA_AURA_PARTY:
                     // AreaAura
-                    if((m_spellInfo->Attributes == (SPELL_ATTR_NOT_SHAPESHIFT | SPELL_ATTR_DONT_AFFECT_SHEATH_STATE | SPELL_ATTR_CASTABLE_WHILE_MOUNTED | SPELL_ATTR_CASTABLE_WHILE_SITTING)) || (m_spellInfo->Attributes == SPELL_ATTR_NOT_SHAPESHIFT))
-                    { SetTargetMap(effIndex, TARGET_AREAEFFECT_PARTY, targetUnitMap); }
+                    if ((m_spellInfo->Attributes == (SPELL_ATTR_NOT_SHAPESHIFT | SPELL_ATTR_UNK18 | SPELL_ATTR_CASTABLE_WHILE_MOUNTED | SPELL_ATTR_CASTABLE_WHILE_SITTING)) || (m_spellInfo->Attributes == SPELL_ATTR_NOT_SHAPESHIFT))
+                        { SetTargetMap(effIndex, TARGET_AREAEFFECT_PARTY, targetUnitMap); }
                     break;
                 case SPELL_EFFECT_SKIN_PLAYER_CORPSE:
                     if (m_targets.getUnitTarget())
@@ -2593,7 +2612,7 @@ void Spell::prepare(SpellCastTargets const* targets, Aura* triggeredByAura)
     }
     else
     {
-        if (m_timer == 0 || m_spellInfo->Id == 7720)// Meeting Stone Fix - Instant Summon effect
+        if (m_timer == 0)
             cast(true);
     }
 }
@@ -3003,9 +3022,6 @@ void Spell::SendSpellCooldown()
 
 void Spell::update(uint32 difftime)
 {
-	// Meeting Stone Fix //
-	static const int meetStoneSum = 23598;//Meeting stone summon
-	
     // update pointers based at it's GUIDs
     UpdatePointers();
 
@@ -3018,22 +3034,20 @@ void Spell::update(uint32 difftime)
     // check for target going invisiblity/fake death
     if (Unit* target = m_targets.getUnitTarget())
     {
-		// Meeting Stone Fix //
-		if (meetStoneSum != m_spellInfo->Id && (!target->IsVisibleForOrDetect(m_caster, m_caster, true) || target->HasAuraType(SPELL_AURA_FEIGN_DEATH)))
-		{
-			if (m_caster->GetTargetGuid() == target->GetObjectGuid())
-				m_caster->SetTargetGuid(ObjectGuid());
-			cancel();
-			return;
-		}
+        if (!target->IsVisibleForOrDetect(m_caster, m_caster, true) || target->HasAuraType(SPELL_AURA_FEIGN_DEATH))
+        {
+            if (m_caster->GetTargetGuid() == target->GetObjectGuid())
+                m_caster->SetTargetGuid(ObjectGuid());
+            cancel();
+            return;
+        }
     }
 
 
     if (m_targets.getUnitTarget() && (m_targets.getUnitTarget() != m_caster) && IsSingleTargetSpell(m_spellInfo) &&
         !IsNextMeleeSwingSpell() && !IsAutoRepeat() && !m_IsTriggeredSpell)
     {
-		// Meeting Stone Fix //
-        if (!m_caster->IsWithinLOSInMap(m_targets.getUnitTarget()) && meetStoneSum != m_spellInfo->Id)
+        if (!m_caster->IsWithinLOSInMap(m_targets.getUnitTarget()))
         {
             cancel();
             return;
@@ -3189,15 +3203,11 @@ void Spell::finish(bool ok)
                 {
                     SpellEntry const* auraSpellInfo = (*i)->GetSpellProto();
                     SpellEffectIndex auraSpellIdx = (*i)->GetEffIndex();
-                    const uint32 procid = auraSpellInfo->EffectTriggerSpell[auraSpellIdx];
-                    // Quick target mode check for procs and triggers (do not cast at friendly targets stuff against hostiles only)
-                    if (IsPositiveSpellTargetMode(m_spellInfo, m_caster, unit) != IsPositiveSpellTargetMode(procid, m_caster, unit))
-                        continue;
                     // Calculate chance at that moment (can be depend for example from combo points)
                     int32 auraBasePoints = (*i)->GetBasePoints();
                     int32 chance = m_caster->CalculateSpellDamage(unit, auraSpellInfo, auraSpellIdx, &auraBasePoints);
                     if (roll_chance_i(chance))
-                        { m_caster->CastSpell(unit, procid, true, nullptr, (*i)); }
+                        { m_caster->CastSpell(unit, auraSpellInfo->EffectTriggerSpell[auraSpellIdx], true, NULL, (*i)); }
                 }
             }
         }
@@ -4235,7 +4245,7 @@ SpellCastResult Spell::CheckCast(bool strict)
                                     }
                                     else
                                     {
-                                        positive = (holder->GetSpellProto()->AttributesEx & SPELL_ATTR_NEGATIVE) == 0;
+                                        positive = (holder->GetSpellProto()->AttributesEx & SPELL_ATTR_EX_NEGATIVE) == 0;
                                     }
 
                                     // do not remove positive auras if friendly target
@@ -4288,10 +4298,6 @@ SpellCastResult Spell::CheckCast(bool strict)
 
         if (non_caster_target)
         {
-			// Meeting Stone Fix 
-			if (m_spellInfo->Id == 23598)
-				{ return SPELL_CAST_OK; }
-			
             // Not allow casting on flying player
             if (target->IsTaxiFlying())
                 { return SPELL_FAILED_BAD_TARGETS; }
@@ -4417,7 +4423,7 @@ SpellCastResult Spell::CheckCast(bool strict)
             if (!explicit_target_mode && m_caster->GetTypeId() == TYPEID_UNIT && m_caster->GetCharmerOrOwnerGuid())
             {
                 // check correctness positive/negative cast target (pet cast real check and cheating check)
-                if (IsPositiveSpell(m_spellInfo->Id, m_caster, target))
+                if (IsPositiveSpell(m_spellInfo->Id))
                 {
                     if (!target_hostile_checked)
                     {
@@ -4442,21 +4448,19 @@ SpellCastResult Spell::CheckCast(bool strict)
             }
         }
 
-        if (IsPositiveSpell(m_spellInfo->Id, m_caster, target))
+        if (IsPositiveSpell(m_spellInfo->Id))
             if (target->IsImmuneToSpell(m_spellInfo, target == m_caster))
                 { return SPELL_FAILED_TARGET_AURASTATE; }
 
         // Must be behind the target.
-        if (m_spellInfo->AttributesEx2 == SPELL_ATTR_EX2_FACING_TARGETS_BACK && m_spellInfo->HasAttribute(SPELL_ATTR_EX_FACING_TARGET) && target->HasInArc(M_PI_F, m_caster))
+        if (m_spellInfo->AttributesEx2 == SPELL_ATTR_EX2_UNK20 && m_spellInfo->HasAttribute(SPELL_ATTR_EX_UNK9) && target->HasInArc(M_PI_F, m_caster))
         {
             SendInterrupted(2);
             return SPELL_FAILED_NOT_BEHIND;
         }
 
-        // Caster must be facing the targets front
-        if (((m_spellInfo->Attributes == (SPELL_ATTR_ABILITY | SPELL_ATTR_NOT_SHAPESHIFT | SPELL_ATTR_DONT_AFFECT_SHEATH_STATE | SPELL_ATTR_STOP_ATTACK_TARGET)) && !m_caster->IsFacingTargetsFront(target))
-            // Caster must be facing the target!
-            || (m_spellInfo->HasAttribute(SPELL_ATTR_EX_FACING_TARGET) && !m_caster->HasInArc(M_PI_F, target)))
+        // Target must be facing you.
+        if ((m_spellInfo->Attributes == (SPELL_ATTR_UNK4 | SPELL_ATTR_NOT_SHAPESHIFT | SPELL_ATTR_UNK18 | SPELL_ATTR_STOP_ATTACK_TARGET)) && !target->HasInArc(M_PI_F, m_caster))
         {
             SendInterrupted(2);
             return SPELL_FAILED_NOT_INFRONT;
@@ -5355,7 +5359,7 @@ SpellCastResult Spell::CheckPetCast(Unit* target)
             if (!_target->IsTargetableForAttack())
                 { return SPELL_FAILED_BAD_TARGETS; }            // guessed error
 
-            if (IsPositiveSpell(m_spellInfo->Id, m_caster, _target))
+            if (IsPositiveSpell(m_spellInfo->Id))
             {
                 if (m_caster->IsHostileTo(_target))
                     { return SPELL_FAILED_BAD_TARGETS; }
@@ -6284,7 +6288,7 @@ bool Spell::CheckTarget(Unit* target, SpellEffectIndex eff)
         if (((Player*)target)->GetVisibility() == VISIBILITY_OFF)
             { return false; }
 
-        if (((Player*)target)->isGameMaster() && !IsPositiveSpell(m_spellInfo->Id, m_caster, target))
+        if (((Player*)target)->isGameMaster() && !IsPositiveSpell(m_spellInfo->Id))
             { return false; }
     }
 

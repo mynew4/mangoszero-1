@@ -7010,7 +7010,7 @@ void Player::CastItemCombatSpell(Unit* Target, WeaponAttackType attType)
 
             if (roll_chance_f(chance))
             {
-                if (IsPositiveSpell(spellInfo->Id, this, Target))
+                if (IsPositiveSpell(spellInfo->Id))
                     { CastSpell(this, spellInfo->Id, true, item); }
                 else
                     { CastSpell(Target, spellInfo->Id, true, item); }
