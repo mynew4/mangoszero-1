@@ -13,16 +13,19 @@ local Quest = {
 	};
 };
 
+local QUEST_KODO_ROUNDUP     = 5561;
 local ITEM_KODO_KOMBOBULATOR = 13892;
 local SPELL_PLYR_KODO_KOMBO  = 18172; -- Player debuff.
 local SPELL_KOMBOBULATOR     = 18153; -- Spell used by item.
 local SPELL_KODO_SELF_AURA   = 18377; -- The Kodo casts on self after being hit by 'kodo Item'.
- -- local SPELL_KODO_KOMBO_GOSSIP = 18362; -- Dummy aura not implemented
+local SPELL_KODO_GOSSIP      = 18362;
 local CREATURE_SMEED         = 11596; -- Quest giver
 local CREATURE_TAMED_KODO    = 11627;
 local CREATURE_AGED_KODO     = 4700;
 local CREATURE_DYING_KODO    = 4701;
 local CREATURE_ANCIENT_KODO  = 4702;
+local GOSSIP_MENU_ID         = 3650;
+local GOSSIP_KODO_TEXT       = 4449;
 
 -- Can be hit by Kodo Kombobulator.
 Quest.Kodos = {
@@ -33,7 +36,10 @@ Quest.Kodos = {
 
 function Quest.OnUseKombobulator(_, player, _, target)
 	if (player:HasAura(SPELL_PLYR_KODO_KOMBO)) then
-		player:StopSpellCast(SPELL_KOMBOBULATOR);
+		return false;
+	end
+
+	if (player:GetQuestStatus(QUEST_KODO_ROUNDUP) == 1) then
 		return false;
 	end
 
@@ -43,7 +49,6 @@ function Quest.OnUseKombobulator(_, player, _, target)
 			return true;
 		end
 	end
-	player:StopSpellCast(SPELL_KOMBOBULATOR);
 	return false; -- Invalid target.
 end
 
@@ -60,47 +65,47 @@ local function RemoveKodo(creature)
 	local guid = creature:GetGUIDLow();
 	Kodo.Owners[guid] = nil;
 	creature:RemoveEvents();
-	creature:DespawnOrUnsummon(3000);
+	creature:DespawnOrUnsummon();
 end
 
 function Kodo.Update(_, _, _, creature)
-	local playersInRange = creature:GetPlayersInRange(110, 2, 1);
+	local pOwner;
 	local targetCreature;
-	local count = #playersInRange;
 	local pOwner = nil;
-	local kodoGUID = creature:GetGUIDLow();
+	local kodoGUID;
 	local randomText;
 	local next = next;
 
-	for i = 1, count do
-		if (playersInRange[i]:GetGUIDLow() == Kodo.Owners[kodoGUID]) then
-			pOwner = playersInRange[i];
-			break;
-		end
+	if (creature:HasAura(SPELL_KODO_GOSSIP)) then
+		-- Waiting to be inspected.
+		return false;
 	end
 
+	kodoGUID = creature:GetGUIDLow();
+	pOwner = GetPlayerByGUID(Kodo.Owners[kodoGUID]);
+
 	if (not pOwner) then
-		local pPlayer = GetPlayerByGUID(Kodo.Owners[kodoGUID]); -- Might still be in the world.
-		if (pPlayer) then
-			pPlayer:RemoveAura(SPELL_PLYR_KODO_KOMBO);
-		end
 		RemoveKodo(creature);
 	end
 
-	targetCreature = creature:GetCreaturesInRange(12, CREATURE_SMEED, 2, 1)
+	if (not pOwner:HasAura(SPELL_PLYR_KODO_KOMBO)) then
+		RemoveKodo(creature);
+	end
+
+	targetCreature = creature:GetCreaturesInRange(15, CREATURE_SMEED, 2, 1);
 
 	if (next(targetCreature)) then
 		targetCreature = targetCreature[1];
 		if (pOwner and pOwner:HasAura(SPELL_PLYR_KODO_KOMBO)) then
 			randomText = math.random(1, 3);
-			pOwner:RemoveAura(SPELL_PLYR_KODO_KOMBO);
 			targetCreature:SendUnitSay(Quest.Strings[randomText], 0);
-			pOwner:KilledMonsterCredit(CREATURE_TAMED_KODO);
+			creature:CastSpell(creature, SPELL_KODO_GOSSIP, true);
 		end
-		creature:MoveExpire();
+		creature:SetNPCFlags(1); -- Enable gossip (so it can be 'inspected' by the player).
 		creature:MoveStop();
+		creature:MoveIdle();
 		creature:SetRooted(true);
-		RemoveKodo(creature);
+		creature:DespawnOrUnsummon(45000); -- Hangs around for 45s, probably wrong?
 	end 
 end
 
@@ -114,7 +119,45 @@ function Kodo.OnTamed(_, caster, spellid, _, creature)
 	caster:CastSpell(caster, SPELL_PLYR_KODO_KOMBO, true);
 	creature:CastSpell(creature, SPELL_KODO_SELF_AURA, true);
 	creature:MoveFollow(caster, 1, math.pi/2); -- PET_FOLLOW_DIST, PET_FOLLOW_ANGLE
+	creature:SetNPCFlags(0); -- Disable gossip.
 	creature:RegisterEvent(Kodo.Update, 2500, 0);
+end
+
+function Kodo.OnGossipHello(event, player, creature)
+	if (player:GetGUIDLow() ~= Kodo.Owners[creature:GetGUIDLow()]) then
+		return false;
+	end
+
+	if (player:HasAura(SPELL_PLYR_KODO_KOMBO) and creature:HasAura(SPELL_KODO_GOSSIP)) then
+		local playerGroup;
+		local groupMembers;
+		local groupCount;
+
+		-- According to wowhead comment, credit is for entire group.
+		if (player:IsInGroup()) then
+			playerGroup = player:GetGroup();
+			groupMembers = playerGroup:GetMembers();
+			groupCount = playerGroup:GetMembersCount();
+			
+			for i = 1, groupCount do
+				if (groupMembers[i]) then
+					if (groupMembers[i]:HasQuest(QUEST_KODO_ROUNDUP) and groupMembers[i]:GetDistance(creature) <= 50) then
+						groupMembers[i]:KilledMonsterCredit(CREATURE_TAMED_KODO);
+					end
+				end
+			end
+		else
+			player:KilledMonsterCredit(CREATURE_TAMED_KODO);
+		end
+
+		player:RemoveAura(SPELL_PLYR_KODO_KOMBO);
+		creature:RemoveAura(SPELL_KODO_SELF_AURA);
+		player:GossipSendMenu(GOSSIP_KODO_TEXT, creature, GOSSIP_MENU_ID);
+		creature:RemoveEvents();
+		return true;
+	end
+
+	return false;
 end
 
 function Kodo.OnDied(_, creature, _)
@@ -125,4 +168,5 @@ RegisterCreatureEvent(CREATURE_AGED_KODO, 30, Kodo.OnTamed); -- CREATURE_EVENT_O
 RegisterCreatureEvent(CREATURE_DYING_KODO, 30, Kodo.OnTamed);
 RegisterCreatureEvent(CREATURE_ANCIENT_KODO, 30, Kodo.OnTamed);
 RegisterCreatureEvent(CREATURE_TAMED_KODO, 4, Kodo.OnDied); -- CREATURE_EVENT_ON_DIED
+RegisterCreatureGossipEvent(CREATURE_TAMED_KODO, 1, Kodo.OnGossipHello); 
 
