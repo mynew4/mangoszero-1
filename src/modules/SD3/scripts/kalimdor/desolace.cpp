@@ -28,7 +28,7 @@
  * ScriptData
  * SDName:      Desolace
  * SD%Complete: 100
- * SDComment:   Quest support: 1440, 5561, 6132.
+ * SDComment:   Quest support: 1440, 6132.
  * SDCategory:  Desolace
  * EndScriptData
  */
@@ -46,221 +46,222 @@
 
 /*######
 ## npc_aged_dying_ancient_kodo
+# NOW HANDLED IN LUA
 ######*/
 
-enum
-{
-    SAY_SMEED_HOME_1                = -1000348,
-    SAY_SMEED_HOME_2                = -1000349,
-    SAY_SMEED_HOME_3                = -1000350,
-
-    QUEST_KODO                      = 5561,
-
-    NPC_SMEED                       = 11596,
-    NPC_AGED_KODO                   = 4700,
-    NPC_DYING_KODO                  = 4701,
-    NPC_ANCIENT_KODO                = 4702,
-    NPC_TAMED_KODO                  = 11627,
-
-    SPELL_KODO_KOMBO_ITEM           = 18153,
-    SPELL_KODO_KOMBO_PLAYER_BUFF    = 18172,                // spells here have unclear function, but using them at least for visual parts and checks
-    SPELL_KODO_KOMBO_DESPAWN_BUFF   = 18377,
-    SPELL_KODO_KOMBO_GOSSIP         = 18362
-};
-
-struct npc_aged_dying_ancient_kodo : public CreatureScript
-{
-    npc_aged_dying_ancient_kodo() : CreatureScript("npc_aged_dying_ancient_kodo") {}
-
-    struct npc_aged_dying_ancient_kodoAI : public ScriptedAI
-    {
-        npc_aged_dying_ancient_kodoAI(Creature* pCreature) : ScriptedAI(pCreature) { }
-
-        uint32 m_uiDespawnTimer;
-
-        void Reset() override
-        {
-            m_uiDespawnTimer = 0;
-        }
-
-        void MoveInLineOfSight(Unit* pWho) override
-        {
-            if (pWho->GetEntry() == NPC_SMEED)
-            {
-                if (m_creature->HasFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP))
-                {
-                    return;
-                }
-
-                if (m_creature->IsWithinDistInMap(pWho, 10.0f))
-                {
-                    switch (urand(0, 2))
-                    {
-                    case 0:
-                        DoScriptText(SAY_SMEED_HOME_1, pWho);
-                        break;
-                    case 1:
-                        DoScriptText(SAY_SMEED_HOME_2, pWho);
-                        break;
-                    case 2:
-                        DoScriptText(SAY_SMEED_HOME_3, pWho);
-                        break;
-                    }
-
-                    // spell have no implemented effect (dummy), so useful to notify spellHit
-                    m_creature->CastSpell(m_creature, SPELL_KODO_KOMBO_GOSSIP, true);
-                }
-            }
-        }
-
-        void SpellHit(Unit* /*pCaster*/, SpellEntry const* pSpell) override
-        {
-            if (pSpell->Id == SPELL_KODO_KOMBO_GOSSIP)
-            {
-                m_creature->SetFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP);
-                m_uiDespawnTimer = 60000;
-            }
-        }
-
-        void UpdateAI(const uint32 diff) override
-        {
-            // timer should always be == 0 unless we already updated entry of creature. Then not expect this updated to ever be in combat.
-            if (m_uiDespawnTimer && m_uiDespawnTimer <= diff)
-            {
-                if (!m_creature->getVictim() && m_creature->IsAlive())
-                {
-                    Reset();
-                    m_creature->SetDeathState(JUST_DIED);
-                    m_creature->Respawn();
-                    return;
-                }
-            }
-            else { m_uiDespawnTimer -= diff; }
-
-            if (!m_creature->SelectHostileTarget() || !m_creature->getVictim())
-            {
-                return;
-            }
-
-            DoMeleeAttackIfReady();
-        }
-    };
-
-    CreatureAI* GetAI(Creature* pCreature) override
-    {
-        return new npc_aged_dying_ancient_kodoAI(pCreature);
-    }
-
-    bool OnGossipHello(Player* pPlayer, Creature* pCreature) override
-    {
-        if (pPlayer->HasAura(SPELL_KODO_KOMBO_PLAYER_BUFF) && pCreature->HasAura(SPELL_KODO_KOMBO_DESPAWN_BUFF))
-        {
-            // the expected quest objective
-            pPlayer->TalkedToCreature(pCreature->GetEntry(), pCreature->GetObjectGuid());
-
-            pPlayer->RemoveAurasDueToSpell(SPELL_KODO_KOMBO_PLAYER_BUFF);
-            pCreature->GetMotionMaster()->MoveIdle();
-        }
-
-        pPlayer->SEND_GOSSIP_MENU(pPlayer->GetGossipTextId(pCreature), pCreature->GetObjectGuid());
-        return true;
-    }
-};
-
-struct spell_npc_aged_dying_ancient_kodo : public SpellScript
-{
-    spell_npc_aged_dying_ancient_kodo() : SpellScript("spell_npc_aged_dying_ancient_kodo") {}
-
-    bool EffectDummy(Unit* pCaster, uint32 spellId, SpellEffectIndex effIndex, Object* pTarget, ObjectGuid /*originalCasterGuid*/) override
-    {
-        // always check spellid and effectindex
-        if (spellId == SPELL_KODO_KOMBO_ITEM && effIndex == EFFECT_INDEX_0)
-        {
-            Creature *pCreatureTarget = pTarget->ToCreature();
-            // no effect if player/creature already have aura from spells
-            if (pCaster->HasAura(SPELL_KODO_KOMBO_PLAYER_BUFF) || pCreatureTarget->HasAura(SPELL_KODO_KOMBO_DESPAWN_BUFF))
-            {
-                return true;
-            }
-
-            if (pCreatureTarget->GetEntry() == NPC_AGED_KODO ||
-                pCreatureTarget->GetEntry() == NPC_DYING_KODO ||
-                pCreatureTarget->GetEntry() == NPC_ANCIENT_KODO)
-            {
-                pCaster->CastSpell(pCaster, SPELL_KODO_KOMBO_PLAYER_BUFF, true);
-
-                pCreatureTarget->UpdateEntry(NPC_TAMED_KODO);
-                pCreatureTarget->CastSpell(pCreatureTarget, SPELL_KODO_KOMBO_DESPAWN_BUFF, false);
-
-                if (pCreatureTarget->GetMotionMaster()->GetCurrentMovementGeneratorType() == WAYPOINT_MOTION_TYPE)
-                {
-                    pCreatureTarget->GetMotionMaster()->MoveIdle();
-                }
-
-                pCreatureTarget->GetMotionMaster()->MoveFollow(pCaster, PET_FOLLOW_DIST, PET_FOLLOW_ANGLE);
-            }
-
-            // always return true when we are handling this spell and effect
-            return true;
-        }
-        return false;
-    }
-};
-
-/*######
-## npc_dalinda_malem
-######*/
-
-enum
-{
-    QUEST_RETURN_TO_VAHLARRIEL  = 1440,
-};
-
-struct npc_dalinda_malem : public CreatureScript
-{
-    npc_dalinda_malem() : CreatureScript("npc_dalinda_malem") {}
-
-    struct npc_dalinda_malemAI : public npc_escortAI
-    {
-        npc_dalinda_malemAI(Creature* m_creature) : npc_escortAI(m_creature) { }
-
-        void JustStartedEscort() override
-        {
-            m_creature->SetStandState(UNIT_STAND_STATE_STAND);
-        }
-
-        void WaypointReached(uint32 uiPointId) override
-        {
-            if (uiPointId == 18)
-            {
-                if (Player* pPlayer = GetPlayerForEscort())
-                {
-                    pPlayer->GroupEventHappens(QUEST_RETURN_TO_VAHLARRIEL, m_creature);
-                }
-            }
-        }
-    };
-
-    CreatureAI* GetAI(Creature* pCreature) override
-    {
-        return new npc_dalinda_malemAI(pCreature);
-    }
-
-    bool OnQuestAccept(Player* pPlayer, Creature* pCreature, const Quest* pQuest) override
-    {
-        if (pQuest->GetQuestId() == QUEST_RETURN_TO_VAHLARRIEL)
-        {
-            if (npc_dalinda_malemAI* pEscortAI = dynamic_cast<npc_dalinda_malemAI*>(pCreature->AI()))
-            {
-                // TODO This faction change needs confirmation, also possible that we need to drop her PASSIVE flag
-                pCreature->SetFactionTemporary(FACTION_ESCORT_A_NEUTRAL_PASSIVE, TEMPFACTION_RESTORE_RESPAWN | TEMPFACTION_TOGGLE_PASSIVE);
-                pEscortAI->Start(false, pPlayer, pQuest);
-                return true;
-            }
-        }
-        return false;
-    }
-};
+//enum
+//{
+//    SAY_SMEED_HOME_1                = -1000348,
+//    SAY_SMEED_HOME_2                = -1000349,
+//    SAY_SMEED_HOME_3                = -1000350,
+//
+//    QUEST_KODO                      = 5561,
+//
+//    NPC_SMEED                       = 11596,
+//    NPC_AGED_KODO                   = 4700,
+//    NPC_DYING_KODO                  = 4701,
+//    NPC_ANCIENT_KODO                = 4702,
+//    NPC_TAMED_KODO                  = 11627,
+//
+//    SPELL_KODO_KOMBO_ITEM           = 18153,
+//    SPELL_KODO_KOMBO_PLAYER_BUFF    = 18172,                // spells here have unclear function, but using them at least for visual parts and checks
+//    SPELL_KODO_KOMBO_DESPAWN_BUFF   = 18377,
+//    SPELL_KODO_KOMBO_GOSSIP         = 18362
+//};
+//
+//struct npc_aged_dying_ancient_kodo : public CreatureScript
+//{
+//    npc_aged_dying_ancient_kodo() : CreatureScript("npc_aged_dying_ancient_kodo") {}
+//
+//    struct npc_aged_dying_ancient_kodoAI : public ScriptedAI
+//    {
+//        npc_aged_dying_ancient_kodoAI(Creature* pCreature) : ScriptedAI(pCreature) { }
+//
+//        uint32 m_uiDespawnTimer;
+//
+//        void Reset() override
+//        {
+//            m_uiDespawnTimer = 0;
+//        }
+//
+//        void MoveInLineOfSight(Unit* pWho) override
+//        {
+//            if (pWho->GetEntry() == NPC_SMEED)
+//            {
+//                if (m_creature->HasFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP))
+//                {
+//                    return;
+//                }
+//
+//                if (m_creature->IsWithinDistInMap(pWho, 10.0f))
+//                {
+//                    switch (urand(0, 2))
+//                    {
+//                    case 0:
+//                        DoScriptText(SAY_SMEED_HOME_1, pWho);
+//                        break;
+//                    case 1:
+//                        DoScriptText(SAY_SMEED_HOME_2, pWho);
+//                        break;
+//                    case 2:
+//                        DoScriptText(SAY_SMEED_HOME_3, pWho);
+//                        break;
+//                    }
+//
+//                    // spell have no implemented effect (dummy), so useful to notify spellHit
+//                    m_creature->CastSpell(m_creature, SPELL_KODO_KOMBO_GOSSIP, true);
+//                }
+//            }
+//        }
+//
+//        void SpellHit(Unit* /*pCaster*/, SpellEntry const* pSpell) override
+//        {
+//            if (pSpell->Id == SPELL_KODO_KOMBO_GOSSIP)
+//            {
+//                m_creature->SetFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP);
+//                m_uiDespawnTimer = 60000;
+//            }
+//        }
+//
+//        void UpdateAI(const uint32 diff) override
+//        {
+//            // timer should always be == 0 unless we already updated entry of creature. Then not expect this updated to ever be in combat.
+//            if (m_uiDespawnTimer && m_uiDespawnTimer <= diff)
+//            {
+//                if (!m_creature->getVictim() && m_creature->IsAlive())
+//                {
+//                    Reset();
+//                    m_creature->SetDeathState(JUST_DIED);
+//                    m_creature->Respawn();
+//                    return;
+//                }
+//            }
+//            else { m_uiDespawnTimer -= diff; }
+//
+//            if (!m_creature->SelectHostileTarget() || !m_creature->getVictim())
+//            {
+//                return;
+//            }
+//
+//            DoMeleeAttackIfReady();
+//        }
+//    };
+//
+//    CreatureAI* GetAI(Creature* pCreature) override
+//    {
+//        return new npc_aged_dying_ancient_kodoAI(pCreature);
+//    }
+//
+//    bool OnGossipHello(Player* pPlayer, Creature* pCreature) override
+//    {
+//        if (pPlayer->HasAura(SPELL_KODO_KOMBO_PLAYER_BUFF) && pCreature->HasAura(SPELL_KODO_KOMBO_DESPAWN_BUFF))
+//        {
+//            // the expected quest objective
+//            pPlayer->TalkedToCreature(pCreature->GetEntry(), pCreature->GetObjectGuid());
+//
+//            pPlayer->RemoveAurasDueToSpell(SPELL_KODO_KOMBO_PLAYER_BUFF);
+//            pCreature->GetMotionMaster()->MoveIdle();
+//        }
+//
+//        pPlayer->SEND_GOSSIP_MENU(pPlayer->GetGossipTextId(pCreature), pCreature->GetObjectGuid());
+//        return true;
+//    }
+//};
+//
+//struct spell_npc_aged_dying_ancient_kodo : public SpellScript
+//{
+//    spell_npc_aged_dying_ancient_kodo() : SpellScript("spell_npc_aged_dying_ancient_kodo") {}
+//
+//    bool EffectDummy(Unit* pCaster, uint32 spellId, SpellEffectIndex effIndex, Object* pTarget, ObjectGuid /*originalCasterGuid*/) override
+//    {
+//        // always check spellid and effectindex
+//        if (spellId == SPELL_KODO_KOMBO_ITEM && effIndex == EFFECT_INDEX_0)
+//        {
+//            Creature *pCreatureTarget = pTarget->ToCreature();
+//            // no effect if player/creature already have aura from spells
+//            if (pCaster->HasAura(SPELL_KODO_KOMBO_PLAYER_BUFF) || pCreatureTarget->HasAura(SPELL_KODO_KOMBO_DESPAWN_BUFF))
+//            {
+//                return true;
+//            }
+//
+//            if (pCreatureTarget->GetEntry() == NPC_AGED_KODO ||
+//                pCreatureTarget->GetEntry() == NPC_DYING_KODO ||
+//                pCreatureTarget->GetEntry() == NPC_ANCIENT_KODO)
+//            {
+//                pCaster->CastSpell(pCaster, SPELL_KODO_KOMBO_PLAYER_BUFF, true);
+//
+//                pCreatureTarget->UpdateEntry(NPC_TAMED_KODO);
+//                pCreatureTarget->CastSpell(pCreatureTarget, SPELL_KODO_KOMBO_DESPAWN_BUFF, false);
+//
+//                if (pCreatureTarget->GetMotionMaster()->GetCurrentMovementGeneratorType() == WAYPOINT_MOTION_TYPE)
+//                {
+//                    pCreatureTarget->GetMotionMaster()->MoveIdle();
+//                }
+//
+//                pCreatureTarget->GetMotionMaster()->MoveFollow(pCaster, PET_FOLLOW_DIST, PET_FOLLOW_ANGLE);
+//            }
+//
+//            // always return true when we are handling this spell and effect
+//            return true;
+//        }
+//        return false;
+//    }
+//};
+//
+///*######
+//## npc_dalinda_malem
+//######*/
+//
+//enum
+//{
+//    QUEST_RETURN_TO_VAHLARRIEL  = 1440,
+//};
+//
+//struct npc_dalinda_malem : public CreatureScript
+//{
+//    npc_dalinda_malem() : CreatureScript("npc_dalinda_malem") {}
+//
+//    struct npc_dalinda_malemAI : public npc_escortAI
+//    {
+//        npc_dalinda_malemAI(Creature* m_creature) : npc_escortAI(m_creature) { }
+//
+//        void JustStartedEscort() override
+//        {
+//            m_creature->SetStandState(UNIT_STAND_STATE_STAND);
+//        }
+//
+//        void WaypointReached(uint32 uiPointId) override
+//        {
+//            if (uiPointId == 18)
+//            {
+//                if (Player* pPlayer = GetPlayerForEscort())
+//                {
+//                    pPlayer->GroupEventHappens(QUEST_RETURN_TO_VAHLARRIEL, m_creature);
+//                }
+//            }
+//        }
+//    };
+//
+//    CreatureAI* GetAI(Creature* pCreature) override
+//    {
+//        return new npc_dalinda_malemAI(pCreature);
+//    }
+//
+//    bool OnQuestAccept(Player* pPlayer, Creature* pCreature, const Quest* pQuest) override
+//    {
+//        if (pQuest->GetQuestId() == QUEST_RETURN_TO_VAHLARRIEL)
+//        {
+//            if (npc_dalinda_malemAI* pEscortAI = dynamic_cast<npc_dalinda_malemAI*>(pCreature->AI()))
+//            {
+//                // TODO This faction change needs confirmation, also possible that we need to drop her PASSIVE flag
+//                pCreature->SetFactionTemporary(FACTION_ESCORT_A_NEUTRAL_PASSIVE, TEMPFACTION_RESTORE_RESPAWN | TEMPFACTION_TOGGLE_PASSIVE);
+//                pEscortAI->Start(false, pPlayer, pQuest);
+//                return true;
+//            }
+//        }
+//        return false;
+//    }
+//};
 
 /*######
 ## npc_melizza_brimbuzzle
@@ -751,14 +752,14 @@ struct npc_rigger_gizelton : public CreatureScript
 void AddSC_desolace()
 {
     Script* s;
-    s = new npc_aged_dying_ancient_kodo();
-    s->RegisterSelf();
+    // s = new npc_aged_dying_ancient_kodo();
+    // s->RegisterSelf();
     s = new npc_dalinda_malem();
     s->RegisterSelf();
     s = new npc_melizza_brimbuzzle();
     s->RegisterSelf();
-    s = new spell_npc_aged_dying_ancient_kodo();
-    s->RegisterSelf();
+    // s = new spell_npc_aged_dying_ancient_kodo();
+    // s->RegisterSelf();
     s = new npc_cork_gizelton();
     s->RegisterSelf();
     s = new npc_rigger_gizelton();
