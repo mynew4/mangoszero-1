@@ -207,61 +207,61 @@
 //        return false;
 //    }
 //};
-//
-///*######
-//## npc_dalinda_malem
-//######*/
-//
-//enum
-//{
-//    QUEST_RETURN_TO_VAHLARRIEL  = 1440,
-//};
-//
-//struct npc_dalinda_malem : public CreatureScript
-//{
-//    npc_dalinda_malem() : CreatureScript("npc_dalinda_malem") {}
-//
-//    struct npc_dalinda_malemAI : public npc_escortAI
-//    {
-//        npc_dalinda_malemAI(Creature* m_creature) : npc_escortAI(m_creature) { }
-//
-//        void JustStartedEscort() override
-//        {
-//            m_creature->SetStandState(UNIT_STAND_STATE_STAND);
-//        }
-//
-//        void WaypointReached(uint32 uiPointId) override
-//        {
-//            if (uiPointId == 18)
-//            {
-//                if (Player* pPlayer = GetPlayerForEscort())
-//                {
-//                    pPlayer->GroupEventHappens(QUEST_RETURN_TO_VAHLARRIEL, m_creature);
-//                }
-//            }
-//        }
-//    };
-//
-//    CreatureAI* GetAI(Creature* pCreature) override
-//    {
-//        return new npc_dalinda_malemAI(pCreature);
-//    }
-//
-//    bool OnQuestAccept(Player* pPlayer, Creature* pCreature, const Quest* pQuest) override
-//    {
-//        if (pQuest->GetQuestId() == QUEST_RETURN_TO_VAHLARRIEL)
-//        {
-//            if (npc_dalinda_malemAI* pEscortAI = dynamic_cast<npc_dalinda_malemAI*>(pCreature->AI()))
-//            {
-//                // TODO This faction change needs confirmation, also possible that we need to drop her PASSIVE flag
-//                pCreature->SetFactionTemporary(FACTION_ESCORT_A_NEUTRAL_PASSIVE, TEMPFACTION_RESTORE_RESPAWN | TEMPFACTION_TOGGLE_PASSIVE);
-//                pEscortAI->Start(false, pPlayer, pQuest);
-//                return true;
-//            }
-//        }
-//        return false;
-//    }
-//};
+
+/*######
+## npc_dalinda_malem
+######*/
+
+enum
+{
+    QUEST_RETURN_TO_VAHLARRIEL  = 1440,
+};
+
+struct npc_dalinda_malem : public CreatureScript
+{
+    npc_dalinda_malem() : CreatureScript("npc_dalinda_malem") {}
+
+    struct npc_dalinda_malemAI : public npc_escortAI
+    {
+        npc_dalinda_malemAI(Creature* m_creature) : npc_escortAI(m_creature) { }
+
+        void JustStartedEscort() override
+        {
+            m_creature->SetStandState(UNIT_STAND_STATE_STAND);
+        }
+
+        void WaypointReached(uint32 uiPointId) override
+        {
+            if (uiPointId == 18)
+            {
+                if (Player* pPlayer = GetPlayerForEscort())
+                {
+                    pPlayer->GroupEventHappens(QUEST_RETURN_TO_VAHLARRIEL, m_creature);
+                }
+            }
+        }
+    };
+
+    CreatureAI* GetAI(Creature* pCreature) override
+    {
+        return new npc_dalinda_malemAI(pCreature);
+    }
+
+    bool OnQuestAccept(Player* pPlayer, Creature* pCreature, const Quest* pQuest) override
+    {
+        if (pQuest->GetQuestId() == QUEST_RETURN_TO_VAHLARRIEL)
+        {
+            if (npc_dalinda_malemAI* pEscortAI = dynamic_cast<npc_dalinda_malemAI*>(pCreature->AI()))
+            {
+                // TODO This faction change needs confirmation, also possible that we need to drop her PASSIVE flag
+                pCreature->SetFactionTemporary(FACTION_ESCORT_A_NEUTRAL_PASSIVE, TEMPFACTION_RESTORE_RESPAWN | TEMPFACTION_TOGGLE_PASSIVE);
+                pEscortAI->Start(false, pPlayer, pQuest);
+                return true;
+            }
+        }
+        return false;
+    }
+};
 
 /*######
 ## npc_melizza_brimbuzzle
