@@ -1133,7 +1133,7 @@ uint32 Map::GetPlayersCountExceptGMs() const
 {
     uint32 count = 0;
     for (MapRefManager::const_iterator itr = m_mapRefManager.begin(); itr != m_mapRefManager.end(); ++itr)
-        if (!itr->getSource()->isGameMaster())
+        if (itr->getSource()->isGMVisible())
             { ++count; }
     return count;
 }
@@ -1519,13 +1519,16 @@ void DungeonMap::Update(const uint32& t_diff)
 
 void DungeonMap::Remove(Player* player, bool remove)
 {
-    DETAIL_LOG("MAP: Removing player '%s' from instance '%u' of map '%s' before relocating to other map", player->GetName(), GetInstanceId(), GetMapName());
+	Player *otherPlayer;
 
+	otherPlayer = 0;
     // if last player set unload timer
     if (!m_unloadTimer && m_mapRefManager.getSize() == 1)
-        { m_unloadTimer = m_unloadWhenEmpty ? MIN_UNLOAD_DELAY : std::max(sWorld.getConfig(CONFIG_UINT32_INSTANCE_UNLOAD_DELAY), (uint32)MIN_UNLOAD_DELAY); }
-
-    Map::Remove(player, remove);
+        m_unloadTimer = m_unloadWhenEmpty ? MIN_UNLOAD_DELAY : std::max(sWorld.getConfig(CONFIG_UINT32_INSTANCE_UNLOAD_DELAY), (uint32)MIN_UNLOAD_DELAY);
+	
+	Map::Remove(player, remove);
+	if (GetPlayersCountExceptGMs() < 1)
+		Map::UnloadAll(true);
 
     // for normal instances schedule the reset after all players have left
     SetResetSchedule(true);
