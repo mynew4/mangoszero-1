@@ -1280,6 +1280,7 @@ class Unit : public WorldObject
          */
         bool CanReachWithMeleeAttack(Unit const* pVictim, float flat_mod = 0.0f) const;
         uint32 m_extraAttacks;
+		bool m_performingExtraAttacks;
 
         /**
          * Internal function, must only be called from Unit::Attack(Unit*)

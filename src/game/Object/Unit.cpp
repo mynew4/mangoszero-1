@@ -2202,11 +2202,16 @@ void Unit::AttackerStateUpdate(Unit* pVictim, WeaponAttackType attType, bool ext
 
 void Unit::HandleProcExtraAttackFor(Unit* victim)
 {
+	// Set performing extra attacks flag to true. During this period, other extra attacks cannot proc.
+	m_performingExtraAttacks = true;
+
     while (m_extraAttacks)
     {
         --m_extraAttacks;
         AttackerStateUpdate(victim, BASE_ATTACK, true);
     }
+
+	m_performingExtraAttacks = false;
 }
 
 MeleeHitOutcome Unit::RollMeleeOutcomeAgainst(const Unit* pVictim, WeaponAttackType attType) const
