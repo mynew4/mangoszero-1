@@ -1519,9 +1519,6 @@ void DungeonMap::Update(const uint32& t_diff)
 
 void DungeonMap::Remove(Player* player, bool remove)
 {
-	Player *otherPlayer;
-
-	otherPlayer = 0;
     // if last player set unload timer
     if (!m_unloadTimer && m_mapRefManager.getSize() == 1)
         m_unloadTimer = m_unloadWhenEmpty ? MIN_UNLOAD_DELAY : std::max(sWorld.getConfig(CONFIG_UINT32_INSTANCE_UNLOAD_DELAY), (uint32)MIN_UNLOAD_DELAY);
