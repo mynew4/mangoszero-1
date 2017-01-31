@@ -49,6 +49,14 @@ class TotemAI : public CreatureAI
         Totem& getTotem();
 
     private:
+		/**
+         * A series of checks to perform on a potential victim to determine whether it is a valid attackable target
+         * @param m_creature The totem
+		 * @param victim The victim to be checked
+		 * @param max_range The range of the totem's spell
+         */
+		bool IsValidTarget(Creature* /* m_creature */, Unit* /* victim */, float /* max_range */);
+
         ObjectGuid i_victimGuid;
 };
 #endif

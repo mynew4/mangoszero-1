@@ -35,10 +35,12 @@
 int
 TotemAI::Permissible(const Creature* creature)
 {
-    if (creature->IsTotem())
-        { return PERMIT_BASE_PROACTIVE; }
+	if (creature->IsTotem())
+	{
+		return PERMIT_BASE_PROACTIVE;
+	}
 
-    return PERMIT_BASE_NO;
+	return PERMIT_BASE_NO;
 }
 
 TotemAI::TotemAI(Creature* c) : CreatureAI(c)
@@ -52,62 +54,83 @@ TotemAI::MoveInLineOfSight(Unit*)
 
 void TotemAI::EnterEvadeMode()
 {
-    m_creature->CombatStop(true);
+	m_creature->CombatStop(true);
 }
 
 void
 TotemAI::UpdateAI(const uint32 /*diff*/)
 {
-    if (getTotem().GetTotemType() != TOTEM_ACTIVE)
-        { return; }
+	if (getTotem().GetTotemType() != TOTEM_ACTIVE)
+	{
+		return;
+	}
 
-    if (!m_creature->IsAlive() || m_creature->IsNonMeleeSpellCasted(false))
-        { return; }
+	if (!m_creature->IsAlive() || m_creature->IsNonMeleeSpellCasted(false))
+	{
+		return;
+	}
 
-    // Search spell
-    SpellEntry const* spellInfo = sSpellStore.LookupEntry(getTotem().GetSpell());
-    if (!spellInfo)
-        { return; }
+	// Search spell
+	SpellEntry const* spellInfo = sSpellStore.LookupEntry(getTotem().GetSpell());
+	if (!spellInfo)
+	{
+		return;
+	}
 
-    // Get spell rangy
-    SpellRangeEntry const* srange = sSpellRangeStore.LookupEntry(spellInfo->rangeIndex);
-    float max_range = GetSpellMaxRange(srange);
+	// Get spell range
+	SpellRangeEntry const* srange = sSpellRangeStore.LookupEntry(spellInfo->rangeIndex);
+	float max_range = GetSpellMaxRange(srange);
 
-    // SPELLMOD_RANGE not applied in this place just because nonexistent range mods for attacking totems
+	// Gets the victim from the last time this update function was run
+	Unit* victim = m_creature->GetMap()->GetUnit(i_victimGuid);
 
-    // pointer to appropriate target if found any
-    Unit* victim = m_creature->GetMap()->GetUnit(i_victimGuid);
+	// Checks if the unit is a valid target
+	if (!IsValidTarget(m_creature, victim, max_range))
+	{
+		victim = NULL;
 
-    // Search victim if no, not attackable, or out of range, or friendly (possible in case duel end)
-    if (!victim ||
-        !victim->IsTargetableForAttack() || !m_creature->IsWithinDistInMap(victim, max_range) ||
-        m_creature->IsFriendlyTo(victim) || !victim->IsVisibleForOrDetect(m_creature, m_creature, false))
-    {
-        victim = NULL;
+		// If it's not, grab the next nearest attackable target and save it to be checked next update
+		MaNGOS::NearestAttackableUnitInObjectRangeCheck u_check(m_creature, m_creature, max_range);
+		MaNGOS::UnitLastSearcher<MaNGOS::NearestAttackableUnitInObjectRangeCheck> checker(victim, u_check);
+		Cell::VisitAllObjects(m_creature, checker, max_range);
 
-        MaNGOS::NearestAttackableUnitInObjectRangeCheck u_check(m_creature, m_creature, max_range);
-        MaNGOS::UnitLastSearcher<MaNGOS::NearestAttackableUnitInObjectRangeCheck> checker(victim, u_check);
-        Cell::VisitAllObjects(m_creature, checker, max_range);
-    }
+		if (victim)
+			i_victimGuid = victim->GetObjectGuid();
 
-    // If have target
-    if (victim)
-    {
-        // remember
-        i_victimGuid = victim->GetObjectGuid();
+		return;
+	}
 
-        // attack
-        m_creature->SetInFront(victim);                     // client change orientation by self
-        m_creature->CastSpell(victim, getTotem().GetSpell(), false);
-    }
-    else
-        { i_victimGuid.Clear(); }
+	// If have target and it's valid, we can attack
+	if (victim)
+	{
+		i_victimGuid = victim->GetObjectGuid();
+
+		// attack
+		m_creature->SetInFront(victim);                     // client change orientation by self
+		m_creature->CastSpell(victim, getTotem().GetSpell(), false);
+	}
+	else {
+		i_victimGuid.Clear();
+	}
+}
+
+
+bool
+TotemAI::IsValidTarget(Creature* m_creature, Unit* victim, float max_range)
+{
+	return
+		victim &&
+		victim->IsTargetableForAttack() &&
+		m_creature->IsWithinDistInMap(victim, max_range) &&
+		!m_creature->IsFriendlyTo(victim) &&
+		victim->IsVisibleForOrDetect(m_creature, m_creature, false) &&
+		victim->IsHostileTo(m_creature);
 }
 
 bool
 TotemAI::IsVisible(Unit*) const
 {
-    return false;
+	return false;
 }
 
 void
@@ -117,5 +140,5 @@ TotemAI::AttackStart(Unit*)
 
 Totem& TotemAI::getTotem()
 {
-    return static_cast<Totem&>(*m_creature);
+	return static_cast<Totem&>(*m_creature);
 }
