@@ -211,6 +211,7 @@ Unit::Unit() :
     m_modAttackSpeedPct[RANGED_ATTACK] = 1.0f;
 
     m_extraAttacks = 0;
+	m_performingExtraAttacks = false;
 
     m_state = 0;
     m_deathState = ALIVE;
