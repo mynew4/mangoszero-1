@@ -253,12 +253,12 @@ struct npc_disciple_of_naralex : public CreatureScript
         }
 
         // Summon mobs at calculated points
-        void DoSpawnMob(uint32 uiEntry, float fDistance, float fAngle)
+        void DoSpawnMob(uint32 uiEntry, float fDistance, float fAngle, bool despawnAfterOOC = true)
         {
             float fX, fY, fZ;
             m_creature->GetNearPoint(m_creature, fX, fY, fZ, 0, fDistance, fAngle);
 
-            m_creature->SummonCreature(uiEntry, fX, fY, fZ, 0, TEMPSUMMON_TIMED_OOC_DESPAWN, 20000);
+			m_creature->SummonCreature(uiEntry, fX, fY, fZ, 0, despawnAfterOOC ? TEMPSUMMON_TIMED_OOC_DESPAWN : TEMPSUMMON_MANUAL_DESPAWN, 20000);
         }
 
         void UpdateEscortAI(const uint32 uiDiff) override
@@ -381,7 +381,8 @@ struct npc_disciple_of_naralex : public CreatureScript
                             {
                                 DoScriptText(EMOTE_VISION, pNaralex);
                             }
-                            DoSpawnMob(NPC_MUTANUS, aSummonPositions[4][0], aSummonPositions[4][1]);
+																									// Don't despawn Mutanus after he dies
+                            DoSpawnMob(NPC_MUTANUS, aSummonPositions[4][0], aSummonPositions[4][1], false);
                             m_uiEventTimer = 0;
                             ++m_uiSubeventPhase;
                             break;
