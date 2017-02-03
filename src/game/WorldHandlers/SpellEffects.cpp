@@ -2098,11 +2098,14 @@ void Spell::EffectOpenLock(SpellEffectIndex eff_idx)
     int32 skillValue;
 
     SpellCastResult res = CanOpenLock(eff_idx, lockId, skillId, reqSkillValue, skillValue);
-    if (res != SPELL_CAST_OK)
-    {
-        SendCastResult(res);
-        return;
-    }
+	if (res != SPELL_CAST_OK)
+	{
+		SendCastResult(res);
+		return;
+	}
+	else if (gameObjTarget)
+		gameObjTarget->Unlock();
+
 
     // mark item as unlocked
     if (itemTarget)

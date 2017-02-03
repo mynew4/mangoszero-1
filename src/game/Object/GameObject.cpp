@@ -100,6 +100,7 @@ void GameObject::AddToWorld()
 
     // After Object::AddToWorld so that for initial state the GO is added to the world (and hence handled correctly)
     UpdateCollisionState();
+	m_locked = GetGOInfo()->GetLockId() ? true : false;
 
 #ifdef ENABLE_ELUNA
     if (!inWorld)
@@ -2284,6 +2285,25 @@ void GameObject::TickCapturePoint()
 uint32 GameObject::GetScriptId()
 {
     return sScriptMgr.GetBoundScriptId(SCRIPTED_GAMEOBJECT, -int32(GetGUIDLow())) ? sScriptMgr.GetBoundScriptId(SCRIPTED_GAMEOBJECT, -int32(GetGUIDLow())) : sScriptMgr.GetBoundScriptId(SCRIPTED_GAMEOBJECT, GetEntry());
+}
+
+bool GameObject::IsLocked()
+{
+	return m_locked;
+}
+
+void GameObject::Unlock()
+{
+	m_locked = false;
+	RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_LOCKED);
+	SendForcedObjectUpdate();
+}
+
+void GameObject::Lock()
+{
+	m_locked = true;
+	SetFlag(GAMEOBJECT_FLAGS, GO_FLAG_LOCKED);
+	SendForcedObjectUpdate();
 }
 
 float GameObject::GetInteractionDistance() const

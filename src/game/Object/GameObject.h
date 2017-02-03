@@ -722,6 +722,9 @@ class GameObject : public WorldObject
         GridReference<GameObject>& GetGridRef() { return m_gridRef; }
 
         GameObjectModel* m_model;
+		bool IsLocked();
+		void Unlock();
+		void Lock();
 
     protected:
         uint32      m_spellId;
@@ -752,6 +755,7 @@ class GameObject : public WorldObject
         void StopGroupLoot() override;
         ObjectGuid m_lootRecipientGuid;                     // player who will have rights for looting if m_lootGroupRecipient==0 or group disbanded
         uint32 m_lootGroupRecipientId;                      // group who will have rights for looting if set and exist
+		bool m_locked;	// Is the object locked?
 
     private:
         void SwitchDoorOrButton(bool activate, bool alternative = false);
