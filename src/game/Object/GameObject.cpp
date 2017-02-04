@@ -477,6 +477,14 @@ void GameObject::Update(uint32 update_diff, uint32 p_time)
                             if (visualGO)
                                 visualGO->SetLootState(GO_JUST_DEACTIVATED);
                         }
+						if (GetEntry() == 103821)
+						{
+							//loot.clear();
+							SetLootRecipient(NULL);
+							SetLootState(GO_READY);
+							loot.items._Myfirst()->count = 1;
+							return;
+						}
                         
                         if (!trapEntry)
                             break;
