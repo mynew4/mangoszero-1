@@ -310,12 +310,23 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* u
         { return; }
 
     bool IsActivateToQuest = false;
+	bool canUse = true;
     //bool IsPerCasterAuraState = false;
 
     // this is called for UPDATETYPE_CREATE_OBJECT, UPDATETYPE_CREATE_OBJECT2, UPDATETYPE_VALUES only
     if (isType(TYPEMASK_GAMEOBJECT) && !((GameObject*)this)->IsTransport())
     {
         IsActivateToQuest = ((GameObject*)this)->ActivateToQuest(target) || target->isGameMaster();
+		if (((GameObject*)this)->GetGoType() == GAMEOBJECT_TYPE_CHEST && ((GameObject*)this)->GetEntry() == 103821)
+		{
+			if (target->HasItemCount(7146, 1, false))
+			{
+				((GameObject*)this)->SetFlag(GAMEOBJECT_FLAGS, GO_FLAG_INTERACT_COND);
+				canUse = false;
+			}
+			else
+				((GameObject*)this)->RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_INTERACT_COND);
+		}
 
         updateMask->SetBit(GAMEOBJECT_DYN_FLAGS);
         if (updatetype == UPDATETYPE_VALUES)
@@ -451,7 +462,7 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* u
                         case GAMEOBJECT_TYPE_SPELL_FOCUS:
                         case GAMEOBJECT_TYPE_GOOBER:
                             *data << uint16(GO_DYNFLAG_LO_ACTIVATE);
-                            *data << uint16(0);
+                            *data << uint16(1);
                             break;
                         default:
                             *data << uint32(0);         // unknown, not happen.
@@ -459,7 +470,16 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* u
                     }
                 }
                 else
-                    { *data << uint32(0); }                 // disable quest object
+				{
+					if (canUse)
+					{
+						*data << uint16(GO_DYNFLAG_LO_ACTIVATE);
+						*data << uint16(1);
+					}
+					else
+						*data << uint32(0);
+
+				}                 // disable quest object
             }
             else
                 { *data << m_uint32Values[index]; }         // other cases
