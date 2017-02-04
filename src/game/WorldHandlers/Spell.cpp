@@ -994,6 +994,12 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
                     unit->SetInCombatWith(real_caster);
                     real_caster->SetInCombatWith(unit);
                 }
+                
+                // Interrupt channeled spells if they have been resisted.
+                if (m_spellInfo->HasAttribute(SPELL_ATTR_EX_CHANNELED_1))
+                {
+                    real_caster->InterruptSpell(CURRENT_CHANNELED_SPELL, true);
+                }
             }
         }
     }
