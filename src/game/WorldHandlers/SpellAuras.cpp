@@ -4402,6 +4402,13 @@ void Aura::PeriodicTick()
             pCaster->ProcDamageAndSpell(target, procAttacker, procVictim, PROC_EX_NORMAL_HIT, pdamage, BASE_ATTACK, spellProto);
 
             pCaster->DealDamage(target, pdamage, &cleanDamage, DOT, GetSpellSchoolMask(spellProto), spellProto, true);
+
+			// Handle SPELL_AURA_ADD_TARGET_TRIGGER auras on first spell tick
+			if (GetAuraTicks() == 1)
+				if (Spell* spell = pCaster->GetCurrentSpell(CURRENT_CHANNELED_SPELL))		// Get the current channeled spell
+					if (spellProto->Id == spell->m_spellInfo->Id)							// Make sure we are targeting this aura's spell, not another's.
+						spell->HandleSpellAuraAddTargetTriggerAuras();
+
             break;
         }
         case SPELL_AURA_PERIODIC_LEECH:
