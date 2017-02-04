@@ -5522,7 +5522,8 @@ void SpellAuraHolder::Update(uint32 diff)
             if (Player* modOwner = caster->GetSpellModOwner())
                 { modOwner->ApplySpellMod(GetId(), SPELLMOD_RANGE, max_range, NULL); }
 
-            if (!caster->IsWithinDistInMap(m_target, max_range))
+			// Add "give". Allows channeled spells to keep casting a bit outside maximum range.
+            if (!caster->IsWithinDistInMap(m_target, max_range + SPELL_RANGE_LEEWAY_CONTINUE))
             {
                 caster->InterruptSpell(CURRENT_CHANNELED_SPELL);
                 return;

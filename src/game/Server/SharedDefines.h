@@ -1069,6 +1069,9 @@ enum SpellRangeIndex
     SPELL_RANGE_IDX_ANYWHERE  = 13,
 };
 
+#define SPELL_RANGE_LEEWAY_START	1.25f	// Allow some leeway of maximum range (to account for player model size?)
+#define SPELL_RANGE_LEEWAY_CONTINUE	6.25f	// Allow some leeway when already casting and mob moves out of range.
+
 enum DamageEffectType
 {
     /// Used for normal weapon damage (not for class abilities or spells)

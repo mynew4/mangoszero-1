@@ -5583,8 +5583,8 @@ SpellCastResult Spell::CheckRange(bool strict)
 	}        
     }
 
-    // add radius of caster and ~5 yds "give" for non stricred (landing) check
-    float range_mod = strict ? 1.25f : 6.25;
+    // add radius of caster and some "give" check
+    float range_mod = strict ? SPELL_RANGE_LEEWAY_START : SPELL_RANGE_LEEWAY_CONTINUE;
 
     SpellRangeEntry const* srange = sSpellRangeStore.LookupEntry(m_spellInfo->rangeIndex);
     float max_range = GetSpellMaxRange(srange) + range_mod;
