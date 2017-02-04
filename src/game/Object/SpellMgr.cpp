@@ -815,7 +815,7 @@ bool IsPositiveEffect(SpellEntry const* spellproto, SpellEffectIndex effIndex)
                         spellproto->SpellFamilyName == SPELLFAMILY_GENERIC)
                         { return false; }
                     // but not this if this first effect (don't found better check)
-                    if (spellproto->HasAttribute(SPELL_ATTR_UNK26) && effIndex == EFFECT_INDEX_0)
+                    if (spellproto->HasAttribute(SPELL_ATTR_NEGATIVE) && effIndex == EFFECT_INDEX_0)
                         { return false; }
                     break;
 //                case SPELL_AURA_TRANSFORM:
@@ -888,8 +888,12 @@ bool IsPositiveEffect(SpellEntry const* spellproto, SpellEffectIndex effIndex)
 bool IsPositiveSpell(uint32 spellId)
 {
     SpellEntry const* spellproto = sSpellStore.LookupEntry(spellId);
+    
     if (!spellproto)
         { return false; }
+    
+    if (spellproto->HasAttribute(SPELL_ATTR_NEGATIVE))
+        return false;
 
     return IsPositiveSpell(spellproto);
 }

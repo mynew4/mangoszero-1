@@ -4950,7 +4950,7 @@ SpellCastResult Spell::CheckCast(bool strict)
                         { return SPELL_FAILED_TRY_AGAIN; }
 
                     lockId = go->GetGOInfo()->GetLockId();
-                    if (!lockId)
+                    if (!lockId && !go->IsLocked())
                         { return SPELL_FAILED_ALREADY_OPEN; }
                 }
                 else if (Item* item = m_targets.getItemTarget())
@@ -4975,7 +4975,7 @@ SpellCastResult Spell::CheckCast(bool strict)
                 // check lock compatibility
                 SpellCastResult res = CanOpenLock(SpellEffectIndex(i), lockId, skillId, reqSkillValue, skillValue);
                 if (res != SPELL_CAST_OK)
-                    { return res; }
+                    return res;
 
                 // chance for fail at orange mining/herb/LockPicking gathering attempt
                 // second check prevent fail at rechecks
@@ -6184,6 +6184,8 @@ void Spell::DelayedChannel()
         if (DynamicObject* dynObj = m_caster->GetDynObject(m_spellInfo->Id, SpellEffectIndex(j)))
             { dynObj->Delay(delaytime); }
     }
+    
+    m_caster->AttackStop(false); // Prevents melee attacks interrupting channel.
 
     SendChannelUpdate(m_timer);
 }
@@ -6538,6 +6540,7 @@ SpellCastResult Spell::CanOpenLock(SpellEffectIndex effIndex, uint32 lockId, Ski
                         { return SPELL_FAILED_SKILL_NOT_HIGH_ENOUGH; }
                 }
 
+				
                 return SPELL_CAST_OK;
             }
         }
