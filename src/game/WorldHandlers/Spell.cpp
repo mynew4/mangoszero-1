@@ -5280,9 +5280,14 @@ SpellCastResult Spell::CheckCast(bool strict)
                 if (expectedTarget->GetTypeId() == TYPEID_PLAYER)
                 {
                     Player const* player = static_cast<Player const*>(expectedTarget);
+                    ShapeshiftForm form = player->GetShapeshiftForm();
+                    
+                    // Allow Levitate to be cast while under the effects of Shadowform.
+                    if (form == FORM_SHADOW && m_spellInfo->Id == 1706) // Levitate
+                        return SPELL_CAST_OK;
                     
                     // Player is not allowed to cast water walk on shapeshifted/mounted player 
-                    if (player->GetShapeshiftForm() != FORM_NONE || player->IsMounted())
+                    if (form != FORM_NONE || player->IsMounted())
                         { return SPELL_FAILED_BAD_TARGETS; }
                 }
             }
