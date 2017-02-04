@@ -143,6 +143,8 @@ struct boss_scarlet_commander_mograine : public CreatureScript
                 m_pInstance->SetData(TYPE_MOGRAINE_AND_WHITE_EVENT, IN_PROGRESS);
 
                 pWhitemane->GetMotionMaster()->MovePoint(1, 1163.113370f, 1398.856812f, 32.527786f);
+                pWhitemane->SetWalk(true, false);
+                pWhitemane->SetInCombatWithZone();
 
                 m_creature->GetMotionMaster()->MovementExpired();
                 m_creature->GetMotionMaster()->MoveIdle();
