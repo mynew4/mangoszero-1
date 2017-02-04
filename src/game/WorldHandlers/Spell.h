@@ -442,6 +442,7 @@ class Spell
         void SetSelfContainer(Spell** pCurrentContainer) { m_selfContainer = pCurrentContainer; }
         Spell** GetSelfContainer() { return m_selfContainer; }
 
+		void HandleSpellAuraAddTargetTriggerAuras();
     protected:
         bool HasGlobalCooldown();
         void TriggerGlobalCooldown();

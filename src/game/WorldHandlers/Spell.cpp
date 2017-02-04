@@ -1405,6 +1405,38 @@ void Spell::HandleDelayedSpellLaunch(TargetInfo* target)
     target->HitInfo = damageInfo.HitInfo;
 }
 
+void Spell::HandleSpellAuraAddTargetTriggerAuras()
+{
+	Unit::AuraList const& targetTriggers = m_caster->GetAurasByType(SPELL_AURA_ADD_TARGET_TRIGGER);
+	for (Unit::AuraList::const_iterator i = targetTriggers.begin(); i != targetTriggers.end(); ++i)
+	{
+		if (!(*i)->isAffectedOnSpell(m_spellInfo))
+		{
+			continue;
+		}
+		for (TargetList::const_iterator ihit = m_UniqueTargetInfo.begin(); ihit != m_UniqueTargetInfo.end(); ++ihit)
+		{
+			if (ihit->missCondition == SPELL_MISS_NONE)
+			{
+				// check m_caster->GetGUID() let load auras at login and speedup most often case
+				Unit* unit = m_caster->GetObjectGuid() == ihit->targetGUID ? m_caster : ObjectAccessor::GetUnit(*m_caster, ihit->targetGUID);
+				if (unit && unit->IsAlive())
+				{
+					SpellEntry const* auraSpellInfo = (*i)->GetSpellProto();
+					SpellEffectIndex auraSpellIdx = (*i)->GetEffIndex();
+					// Calculate chance at that moment (can be depend for example from combo points)
+					int32 auraBasePoints = (*i)->GetBasePoints();
+					int32 chance = m_caster->CalculateSpellDamage(unit, auraSpellInfo, auraSpellIdx, &auraBasePoints);
+					if (roll_chance_i(chance))
+					{
+						m_caster->CastSpell(unit, auraSpellInfo->EffectTriggerSpell[auraSpellIdx], true, NULL, (*i));
+					}
+				}
+			}
+		}
+	}
+}
+
 void Spell::InitializeDamageMultipliers()
 {
     for (int32 i = 0; i < MAX_EFFECT_INDEX; ++i)
@@ -3194,30 +3226,9 @@ void Spell::finish(bool ok)
         { return; }
 
     // handle SPELL_AURA_ADD_TARGET_TRIGGER auras
-    Unit::AuraList const& targetTriggers = m_caster->GetAurasByType(SPELL_AURA_ADD_TARGET_TRIGGER);
-    for (Unit::AuraList::const_iterator i = targetTriggers.begin(); i != targetTriggers.end(); ++i)
-    {
-        if (!(*i)->isAffectedOnSpell(m_spellInfo))
-            { continue; }
-        for (TargetList::const_iterator ihit = m_UniqueTargetInfo.begin(); ihit != m_UniqueTargetInfo.end(); ++ihit)
-        {
-            if (ihit->missCondition == SPELL_MISS_NONE)
-            {
-                // check m_caster->GetGUID() let load auras at login and speedup most often case
-                Unit* unit = m_caster->GetObjectGuid() == ihit->targetGUID ? m_caster : ObjectAccessor::GetUnit(*m_caster, ihit->targetGUID);
-                if (unit && unit->IsAlive())
-                {
-                    SpellEntry const* auraSpellInfo = (*i)->GetSpellProto();
-                    SpellEffectIndex auraSpellIdx = (*i)->GetEffIndex();
-                    // Calculate chance at that moment (can be depend for example from combo points)
-                    int32 auraBasePoints = (*i)->GetBasePoints();
-                    int32 chance = m_caster->CalculateSpellDamage(unit, auraSpellInfo, auraSpellIdx, &auraBasePoints);
-                    if (roll_chance_i(chance))
-                        { m_caster->CastSpell(unit, auraSpellInfo->EffectTriggerSpell[auraSpellIdx], true, NULL, (*i)); }
-                }
-            }
-        }
-    }
+	// Should only occur for non-channeled spells, as they apply this aura on first tick.
+	if (!m_spellInfo->HasAttribute(SPELL_ATTR_EX_CHANNELED_1))
+		HandleSpellAuraAddTargetTriggerAuras();
 
     // Heal caster for all health leech from all targets
     if (m_healthLeech)
