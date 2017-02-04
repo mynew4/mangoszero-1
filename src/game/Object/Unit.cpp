@@ -1791,8 +1791,12 @@ void Unit::DealMeleeDamage(CalcDamageInfo* damageInfo, bool durabilityLoss)
         if (Probability > 40.0f)
             { Probability = 40.0f; }
 
-        if (roll_chance_f(Probability))
-            { CastSpell(pVictim, 1604, true); }
+        // Prevent daze if the damage was absorbed or blocked in its entirety. (Power Word: Shield)
+        if (damageInfo->damage > 0)
+        {
+            if (roll_chance_f(Probability))
+                CastSpell(pVictim, 1604, true);
+        }
     }
 
     // update at damage Judgement aura duration that applied by attacker at victim
