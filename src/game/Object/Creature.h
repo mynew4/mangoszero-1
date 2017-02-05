@@ -595,6 +595,7 @@ class Creature : public Unit
         void _AddCreatureSpellCooldown(uint32 spell_id, time_t end_time);
         void _AddCreatureCategoryCooldown(uint32 category, time_t apply_time);
         void AddCreatureSpellCooldown(uint32 spellid);
+        void AddCreatureSpellCooldown(uint32 spellid, uint32 unTimeMs);
         bool HasSpellCooldown(uint32 spell_id) const;
         bool HasCategoryCooldown(uint32 spell_id) const;
         uint32 GetCreatureSpellCooldownDelay(uint32 spellId) const;
