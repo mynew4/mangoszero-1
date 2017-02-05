@@ -6224,8 +6224,6 @@ void Spell::DelayedChannel()
         if (DynamicObject* dynObj = m_caster->GetDynObject(m_spellInfo->Id, SpellEffectIndex(j)))
             { dynObj->Delay(delaytime); }
     }
-    
-    m_caster->AttackStop(false); // Prevents melee attacks interrupting channel.
 
     SendChannelUpdate(m_timer);
 }
