@@ -3046,8 +3046,10 @@ void Unit::_UpdateSpells(uint32 time)
 
 void Unit::_UpdateAutoRepeatSpell()
 {
+	bool isPlayer = GetTypeId() == TYPEID_PLAYER;
+
     // check "realtime" interrupts
-    if ((GetTypeId() == TYPEID_PLAYER && ((Player*)this)->isMoving()) || IsNonMeleeSpellCasted(false, false, true))
+    if ((isPlayer && ((Player*)this)->isMoving()) || IsNonMeleeSpellCasted(false, false, true))
     {
         // cancel wand shoot
         if (m_currentSpells[CURRENT_AUTOREPEAT_SPELL]->m_spellInfo->Category == 351)
@@ -3055,6 +3057,25 @@ void Unit::_UpdateAutoRepeatSpell()
         m_AutoRepeatFirstCast = true;
         return;
     }
+
+	ObjectGuid targetGuid = isPlayer ? ((Player*)this)->GetSelectionGuid() : GetTargetGuid();
+
+	// Check the player's actual target
+	if (!targetGuid.IsEmpty() && targetGuid.IsUnit())
+	{
+		Unit* unitTarget = GetMap()->GetUnit(targetGuid);
+		
+		// If target is different, update it
+		if (unitTarget != m_currentSpells[CURRENT_AUTOREPEAT_SPELL]->m_targets.getUnitTarget())
+		{
+			m_currentSpells[CURRENT_AUTOREPEAT_SPELL]->m_targets.setUnitTarget(unitTarget);
+
+			if (unitTarget == this || m_currentSpells[CURRENT_AUTOREPEAT_SPELL]->CheckCast(true) != SPELL_CAST_OK)
+				InterruptSpell(CURRENT_AUTOREPEAT_SPELL);
+			else
+				m_AutoRepeatFirstCast = true;
+		}
+	}
 
     // apply delay
     if (m_AutoRepeatFirstCast && getAttackTimer(RANGED_ATTACK) < 500)
