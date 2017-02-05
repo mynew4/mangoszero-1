@@ -260,23 +260,20 @@ static AuraType const frozenAuraTypes[] = { SPELL_AURA_MOD_ROOT, SPELL_AURA_MOD_
 Aura::Aura(SpellEntry const* spellproto, SpellEffectIndex eff, int32* currentBasePoints, SpellAuraHolder* holder, Unit* target, Unit* caster, Item* castItem) :
     m_spellmod(NULL), m_periodicTimer(0), m_periodicTick(0), m_removeMode(AURA_REMOVE_BY_DEFAULT),
     m_effIndex(eff), m_positive(false), m_isPeriodic(false), m_isAreaAura(false),
-    m_isPersistent(false), m_in_use(0), m_spellAuraHolder(holder)
+    m_isPersistent(false), m_in_use(0), m_spellAuraHolder(holder), m_caster(caster)
 {
     MANGOS_ASSERT(target);
     MANGOS_ASSERT(spellproto && spellproto == sSpellStore.LookupEntry(spellproto->Id));     // `info` must be pointer to sSpellStore element
 
     m_currentBasePoints = currentBasePoints ? *currentBasePoints : spellproto->CalculateSimpleValue(eff);
-
     m_positive = IsPositiveEffect(spellproto, m_effIndex);
     m_applyTime = time(NULL);
 
     int32 damage;
     if (!caster)
-        { damage = m_currentBasePoints; }
+		damage = m_currentBasePoints; 
     else
-    {
         damage = caster->CalculateSpellDamage(target, spellproto, m_effIndex, &m_currentBasePoints);
-    }
 
     DEBUG_FILTER_LOG(LOG_FILTER_SPELL_CAST, "Aura: construct Spellid : %u, Aura : %u Target : %d Damage : %d", spellproto->Id, spellproto->EffectApplyAuraName[eff], spellproto->EffectImplicitTargetA[eff], damage);
 
@@ -4314,6 +4311,11 @@ void Aura::PeriodicTick()
     Unit* target = GetTarget();
     SpellEntry const* spellProto = GetSpellProto();
 
+	// Damage should be recalculated each tick, as it may vary between 2 values.
+	// Example: Rank 1 Drain Life with Rank 1 Imp Drain Life does 10 - 11 damage per tick.
+	int32 damage = m_caster ? m_caster->CalculateSpellDamage(target, spellProto, m_effIndex, &m_currentBasePoints) : m_currentBasePoints;
+	SetModifier(AuraType(spellProto->EffectApplyAuraName[m_effIndex]), damage, spellProto->EffectAmplitude[m_effIndex], spellProto->EffectMiscValue[m_effIndex]);
+
     switch (m_modifier.m_auraname)
     {
         case SPELL_AURA_PERIODIC_DAMAGE:
@@ -4790,6 +4792,7 @@ void Aura::PeriodicDummyTick()
 {
     SpellEntry const* spell = GetSpellProto();
     Unit* target = GetTarget();
+
     switch (spell->SpellFamilyName)
     {
         case SPELLFAMILY_GENERIC:
