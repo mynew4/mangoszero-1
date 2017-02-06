@@ -1368,6 +1368,13 @@ void Unit::CalculateSpellDamage(SpellNonMeleeDamage* damageInfo, int32 damage, S
             // Calculate damage bonus
             switch (spellInfo->Id)
             {
+				// Rogue Blade Flurry
+				case 22482:
+				{
+					// Should not add bonus melee damage to the copied attack, as it was added already on the primary attack.
+					break;
+				}
+
                 // Paladin
                 // Judgement of Command receive benefit from Spell Damage and Healing
                 case 20467:    case 20963:    case 20964:    case 20965:    case 20966:
@@ -1418,12 +1425,19 @@ void Unit::CalculateSpellDamage(SpellNonMeleeDamage* damageInfo, int32 damage, S
     // damage mitigation
     if (damage > 0)
     {
+		// TODO: Hack, could this information come from a spell attribute instead?
+		// Some physical damage spells should not take armour into account as it was already applied on the primary target.
+		// Blade Flurry
+		if (spellInfo->Id == 22482)
+			{ }
+
         // physical damage => armor
-        if (damageSchoolMask & SPELL_SCHOOL_MASK_NORMAL)
+        else if (damageSchoolMask & SPELL_SCHOOL_MASK_NORMAL)
             { damage = CalcArmorReducedDamage(pVictim, damage); }
     }
     else
         { damage = 0; }
+
     damageInfo->damage = damage;
 }
 
