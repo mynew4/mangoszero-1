@@ -2255,7 +2255,7 @@ void Creature::AddCreatureSpellCooldown(uint32 spellid)
         { _AddCreatureCategoryCooldown(spellInfo->Category, time(NULL)); }
 }
 
-void Creature::AddCreatureSpellCooldown(uint32 spellid, uint32 unTimeMs)
+void Creature::AddCreatureSpellCooldown(uint32 spellid, uint32 endTime)
 {
     time_t curTime;
     SpellEntry const* spellInfo;
@@ -2263,9 +2263,9 @@ void Creature::AddCreatureSpellCooldown(uint32 spellid, uint32 unTimeMs)
     spellInfo = sSpellStore.LookupEntry(spellid);
     if (!spellInfo)
         return;
-        
+
     curTime = time(NULL);
-    _AddCreatureSpellCooldown(spellid, (curTime + unTimeMs) / IN_MILLISECONDS);
+    _AddCreatureSpellCooldown(spellid, endTime);
     
     if (spellInfo->Category)
         _AddCreatureCategoryCooldown(spellInfo->Category, curTime);
