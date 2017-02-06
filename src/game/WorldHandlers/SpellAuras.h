@@ -486,7 +486,7 @@ class Aura
         SpellModifier* m_spellmod;
 
         time_t m_applyTime;
-
+		Unit* m_caster;
         int32 m_currentBasePoints;                          // cache SpellEntry::CalculateSimpleValue and use for set custom base points
         int32 m_periodicTimer;                              // Timer for periodic auras
         uint32 m_periodicTick;                              // Tick count pass (including current if use in tick code) from aura apply, used for some tick count dependent aura effects

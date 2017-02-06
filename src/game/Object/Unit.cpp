@@ -3046,8 +3046,10 @@ void Unit::_UpdateSpells(uint32 time)
 
 void Unit::_UpdateAutoRepeatSpell()
 {
+	bool isPlayer = GetTypeId() == TYPEID_PLAYER;
+
     // check "realtime" interrupts
-    if ((GetTypeId() == TYPEID_PLAYER && ((Player*)this)->isMoving()) || IsNonMeleeSpellCasted(false, false, true))
+    if ((isPlayer && ((Player*)this)->isMoving()) || IsNonMeleeSpellCasted(false, false, true))
     {
         // cancel wand shoot
         if (m_currentSpells[CURRENT_AUTOREPEAT_SPELL]->m_spellInfo->Category == 351)
@@ -3055,6 +3057,25 @@ void Unit::_UpdateAutoRepeatSpell()
         m_AutoRepeatFirstCast = true;
         return;
     }
+
+	ObjectGuid targetGuid = isPlayer ? ((Player*)this)->GetSelectionGuid() : GetTargetGuid();
+
+	// Check the player's actual target
+	if (!targetGuid.IsEmpty() && targetGuid.IsUnit())
+	{
+		Unit* unitTarget = GetMap()->GetUnit(targetGuid);
+		
+		// If target is different, update it
+		if (unitTarget != m_currentSpells[CURRENT_AUTOREPEAT_SPELL]->m_targets.getUnitTarget())
+		{
+			m_currentSpells[CURRENT_AUTOREPEAT_SPELL]->m_targets.setUnitTarget(unitTarget);
+
+			if (unitTarget == this || m_currentSpells[CURRENT_AUTOREPEAT_SPELL]->CheckCast(true) != SPELL_CAST_OK)
+				InterruptSpell(CURRENT_AUTOREPEAT_SPELL);
+			else
+				m_AutoRepeatFirstCast = true;
+		}
+	}
 
     // apply delay
     if (m_AutoRepeatFirstCast && getAttackTimer(RANGED_ATTACK) < 500)
@@ -5627,8 +5648,8 @@ int32 Unit::SpellBonusWithCoeffs(Unit* pCaster, SpellEntry const* spellProto, in
  * also includes different bonuses dependent from target auras
  */
 uint32 Unit::SpellDamageBonusDone(Unit* pVictim, SpellEntry const* spellProto, uint32 pdamage, DamageEffectType damagetype, uint32 stack)
-{
-    if (!spellProto || !pVictim || damagetype == DIRECT_DAMAGE)
+{	
+	if (!spellProto || !pVictim || damagetype == DIRECT_DAMAGE)
         { return pdamage; }
 
     // For totems get damage bonus from owner (statue isn't totem in fact)
@@ -5707,11 +5728,21 @@ uint32 Unit::SpellDamageBonusDone(Unit* pVictim, SpellEntry const* spellProto, u
     DoneTotal = SpellBonusWithCoeffs(this, spellProto, DoneTotal, DoneAdvertisedBenefit, 0, damagetype, true);
 
     float tmpDamage = (int32(pdamage) + DoneTotal * int32(stack)) * DoneTotalMod;
+
     // apply spellmod to Done damage (flat and pct)
     if (Player* modOwner = GetSpellModOwner())
         { modOwner->ApplySpellMod(spellProto->Id, damagetype == DOT ? SPELLMOD_DOT : SPELLMOD_DAMAGE, tmpDamage); }
 
-    return tmpDamage > 0 ? uint32(tmpDamage) : 0;
+	int32 roundedValue = int32(tmpDamage);
+	if (tmpDamage != roundedValue)
+	{
+		// If the value is fractional, randomise whether it rounds up or down.
+		// This calculation also exists in Unit::CalculateSpellDamage
+		// TODO: Should this chance be based on how close the value is to one side? Currently equal chance.
+		roundedValue = (bool)urand(0, 1) ? ceil(tmpDamage) : floor(tmpDamage);
+	}
+
+    return roundedValue > 0 ? roundedValue : 0;
 }
 
 /**
@@ -7511,6 +7542,7 @@ int32 Unit::CalculateSpellDamage(Unit const* target, SpellEntry const* spellProt
                        : spellProto->EffectBasePoints[effect_index];
 
     basePoints += int32(level * basePointsPerLevel);
+
     int32 randomPoints = int32(spellProto->EffectDieSides[effect_index] + level * randomPointsPerLevel);
     float comboDamage = spellProto->EffectPointsPerComboPoint[effect_index];
 
@@ -7530,7 +7562,7 @@ int32 Unit::CalculateSpellDamage(Unit const* target, SpellEntry const* spellProt
         }
     }
 
-    int32 value = basePoints;
+    float value = float(basePoints);
 
     // random damage
     if (comboDamage != 0 && unitPlayer && target && (target->GetObjectGuid() == unitPlayer->GetComboTargetGuid()))
@@ -7539,16 +7571,24 @@ int32 Unit::CalculateSpellDamage(Unit const* target, SpellEntry const* spellProt
     if (Player* modOwner = GetSpellModOwner())
     {
         modOwner->ApplySpellMod(spellProto->Id, SPELLMOD_ALL_EFFECTS, value);
-
     }
 
     if (spellProto->HasAttribute(SPELL_ATTR_LEVEL_DAMAGE_CALCULATION) && spellProto->spellLevel &&
         spellProto->Effect[effect_index] != SPELL_EFFECT_WEAPON_PERCENT_DAMAGE &&
         spellProto->Effect[effect_index] != SPELL_EFFECT_KNOCK_BACK &&
         (spellProto->Effect[effect_index] != SPELL_EFFECT_APPLY_AURA || spellProto->EffectApplyAuraName[effect_index] != SPELL_AURA_MOD_DECREASE_SPEED))
-        { value = int32(value * 0.25f * exp(getLevel() * (70 - spellProto->spellLevel) / 1000.0f)); }
+        { value = value * 0.25f * exp(getLevel() * (70 - spellProto->spellLevel) / 1000.0f); }
 
-    return value;
+	int32 roundedValue = int32(value);
+	if (value != roundedValue)
+	{
+		// If the value is fractional, randomise whether it rounds up or down.
+		// This calculation also exists in Unit::SpellDamageBonusDone
+		// TODO: Should this chance be based on how close the value is to one side? Currently equal chance.
+		roundedValue = (bool)urand(0, 1) ? ceil(value) : floor(value);
+	}
+
+	return roundedValue;
 }
 
 DiminishingLevels Unit::GetDiminishing(DiminishingGroup group)
