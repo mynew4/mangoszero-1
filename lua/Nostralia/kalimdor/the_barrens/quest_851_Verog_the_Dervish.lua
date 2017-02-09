@@ -20,10 +20,10 @@ local function OnVerogSummonerDied(event, creature, killer)
 	if (randomChance > 80) then
 		if (isVerogSpawned) then
 			-- Check if this is still the case.
-			local pVelrog;
-			pVelrog = creature:GetNearestCreature(300, CREATURE_VELROG, 0, 1);
-			if (not pVelrog) then
-				isVelrogSpawned = false;
+			local pVerog;
+			pVerog = creature:GetNearestCreature(400, CREATURE_VEROG, 0, 1);
+			if (not pVerog) then
+				isVerogSpawned = false;
 			end
  			return;
 		end
