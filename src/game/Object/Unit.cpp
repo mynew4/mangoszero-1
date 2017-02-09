@@ -3194,28 +3194,6 @@ void Unit::SetCurrentCastedSpell(Spell* pSpell)
     //   pSpell->m_selfContainer = &(m_currentSpells[pSpell->GetCurrentContainer()]);
 }
 
-void Unit::ProhibitSpellSchool(SpellSchoolMask idSchoolMask, uint32 unTimeMs)
-{
-    time_t curTime;
-    Creature* creature;
-    SpellEntry const* spellInfo;
-    
-    creature = ((Creature*)this);
-    for (uint32 i = 0; i < CREATURE_MAX_SPELLS; i++)
-    {
-        if (!creature->m_spells[i])
-            return;
-
-        spellInfo = sSpellStore.LookupEntry(creature->m_spells[i]);
-        if (GetSpellSchoolMask(spellInfo) & idSchoolMask)
-        {
-            curTime = time(NULL);
-            creature->AddCreatureSpellCooldown(spellInfo->Id, (curTime + unTimeMs) / IN_MILLISECONDS);
-            DEBUG_LOG("ProhibitSpellSchool spell id %d for %d seconds", spellInfo->Id, unTimeMs);
-        }
-    }
-}
-
 void Unit::InterruptSpell(CurrentSpellTypes spellType, bool withDelayed)
 {
     if (m_currentSpells[spellType] && (withDelayed || m_currentSpells[spellType]->getState() != SPELL_STATE_DELAYED))
