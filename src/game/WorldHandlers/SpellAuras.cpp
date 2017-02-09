@@ -4313,8 +4313,9 @@ void Aura::PeriodicTick()
 
 	// Damage should be recalculated each tick, as it may vary between 2 values.
 	// Example: Rank 1 Drain Life with Rank 1 Imp Drain Life does 10 - 11 damage per tick.
-	int32 damage = m_caster ? m_caster->CalculateSpellDamage(target, spellProto, m_effIndex, &m_currentBasePoints) : m_currentBasePoints;
-	SetModifier(AuraType(spellProto->EffectApplyAuraName[m_effIndex]), damage, spellProto->EffectAmplitude[m_effIndex], spellProto->EffectMiscValue[m_effIndex]);
+	// Currently doesn't work. TODO: Fix.
+	// int32 damage = m_caster ? m_caster->CalculateSpellDamage(target, spellProto, m_effIndex, &m_currentBasePoints) : m_currentBasePoints;
+	// SetModifier(AuraType(spellProto->EffectApplyAuraName[m_effIndex]), damage, spellProto->EffectAmplitude[m_effIndex], spellProto->EffectMiscValue[m_effIndex]);
 
     switch (m_modifier.m_auraname)
     {
