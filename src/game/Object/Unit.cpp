@@ -3088,8 +3088,10 @@ void Unit::_UpdateAutoRepeatSpell()
 		{
 			m_currentSpells[CURRENT_AUTOREPEAT_SPELL]->m_targets.setUnitTarget(unitTarget);
 
-			if (unitTarget == this || m_currentSpells[CURRENT_AUTOREPEAT_SPELL]->CheckCast(true) != SPELL_CAST_OK)
+			if (unitTarget == this || m_currentSpells[CURRENT_AUTOREPEAT_SPELL]->CheckCast(true) != SPELL_CAST_OK) {
 				InterruptSpell(CURRENT_AUTOREPEAT_SPELL);
+				return;
+			}
 			else
 				m_AutoRepeatFirstCast = true;
 		}
