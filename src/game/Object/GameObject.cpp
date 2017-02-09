@@ -477,6 +477,7 @@ void GameObject::Update(uint32 update_diff, uint32 p_time)
                             if (visualGO)
                                 visualGO->SetLootState(GO_JUST_DEACTIVATED);
                         }
+						/* DISABLE UNTIL WE CAN FIX
 						if (GetEntry() == 103821)
 						{
                             SetLootRecipient(NULL);
@@ -485,7 +486,7 @@ void GameObject::Update(uint32 update_diff, uint32 p_time)
                             item.count = 1;
                             return;
 						}
-                        
+                        */
                         if (!trapEntry)
                             break;
                         GameObjectInfo const* trapInfo = sGOStorage.LookupEntry<GameObjectInfo>(trapEntry);
