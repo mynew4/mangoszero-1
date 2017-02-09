@@ -65,12 +65,6 @@ CanCastResult CreatureAI::CanCastSpell(Unit* pTarget, const SpellEntry* pSpell, 
         // Check for power (also done by Spell::CheckCast())
         if (m_creature->GetPower((Powers)pSpell->powerType) < Spell::CalculatePowerCost(pSpell, m_creature))
             { return CAST_FAIL_POWER; }
-            
-        // Check for spell cooldown
-        if (m_creature->HasSpellCooldown(pSpell->Id))
-        {
-            return CAST_FAIL_SILENCED;
-        }
     }
 
     if (!m_creature->IsWithinLOSInMap(pTarget))
@@ -101,15 +95,13 @@ CanCastResult CreatureAI::CanCastSpell(Unit* pTarget, const SpellEntry* pSpell, 
 CanCastResult CreatureAI::DoCastSpellIfCan(Unit* pTarget, uint32 uiSpell, uint32 uiCastFlags, ObjectGuid uiOriginalCasterGUID)
 {
     Unit* pCaster = m_creature;
-    const SpellEntry* pSpell;
 
     if (uiCastFlags & CAST_FORCE_TARGET_SELF)
         { pCaster = pTarget; }
 
-    pSpell = sSpellStore.LookupEntry(uiSpell);
     if (!pCaster->IsNonMeleeSpellCasted(false) || (uiCastFlags & (CAST_TRIGGERED | CAST_INTERRUPT_PREVIOUS)))
     {
-        if (pSpell)
+        if (const SpellEntry* pSpell = sSpellStore.LookupEntry(uiSpell))
         {
             // If cast flag CAST_AURA_NOT_PRESENT is active, check if target already has aura on them
             if (uiCastFlags & CAST_AURA_NOT_PRESENT)
