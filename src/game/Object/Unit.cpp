@@ -3060,6 +3060,10 @@ void Unit::_UpdateSpells(uint32 time)
 
 void Unit::_UpdateAutoRepeatSpell()
 {
+	// No auto repeat spell exists, cancel
+	if (!m_currentSpells[CURRENT_AUTOREPEAT_SPELL])
+		return;
+
 	bool isPlayer = GetTypeId() == TYPEID_PLAYER;
 
     // check "realtime" interrupts
