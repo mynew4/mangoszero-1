@@ -49,6 +49,7 @@
 #include "vmap/GameObjectModel.h"
 #include "CreatureAISelector.h"
 #include "SQLStorages.h"
+#include <vector>
 #ifdef ENABLE_ELUNA
 #include "LuaEngine.h"
 #endif /* ENABLE_ELUNA */
@@ -477,16 +478,15 @@ void GameObject::Update(uint32 update_diff, uint32 p_time)
                             if (visualGO)
                                 visualGO->SetLootState(GO_JUST_DEACTIVATED);
                         }
-						/* DISABLE UNTIL WE CAN FIX
+
 						if (GetEntry() == 103821)
 						{
                             SetLootRecipient(NULL);
                             SetLootState(GO_READY);
-                            LootItem &item = loot.items[(int8)0];
-                            item.count = 1;
+							loot.items._Myfirst()->count = 1;
                             return;
 						}
-                        */
+
                         if (!trapEntry)
                             break;
                         GameObjectInfo const* trapInfo = sGOStorage.LookupEntry<GameObjectInfo>(trapEntry);
