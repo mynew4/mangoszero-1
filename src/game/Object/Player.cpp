@@ -10008,8 +10008,8 @@ Item* Player::StoreNewItem(ItemPosCountVec const& dest, uint32 item, bool update
     Item* pItem = Item::CreateItem(item, count, this, randomPropertyId);
     if (pItem)
     {
-        ItemAddedQuestCheck(item, count);
-        pItem = StoreItem(dest, pItem, update);
+		pItem = StoreItem(dest, pItem, update);
+		ItemAddedQuestCheck(item, count);
     }
     return pItem;
 }

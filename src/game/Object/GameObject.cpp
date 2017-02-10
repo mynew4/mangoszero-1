@@ -49,7 +49,6 @@
 #include "vmap/GameObjectModel.h"
 #include "CreatureAISelector.h"
 #include "SQLStorages.h"
-#include <vector>
 #ifdef ENABLE_ELUNA
 #include "LuaEngine.h"
 #endif /* ENABLE_ELUNA */
@@ -481,9 +480,12 @@ void GameObject::Update(uint32 update_diff, uint32 p_time)
 
 						if (GetEntry() == 103821)
 						{
-                            SetLootRecipient(NULL);
-                            SetLootState(GO_READY);
-							loot.items._Myfirst()->count = 1;
+							LootStoreItem storeitem = LootStoreItem(7146, 100.0f, 0, 0, 1, 1);
+							loot.AddItem(storeitem);
+							loot.items[0].is_looted = true;
+							SetLootRecipient(NULL);
+							SetLootState(GO_READY);
+							this->SendForcedObjectUpdate();
                             return;
 						}
 
