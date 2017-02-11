@@ -317,15 +317,29 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* u
     if (isType(TYPEMASK_GAMEOBJECT) && !((GameObject*)this)->IsTransport())
     {
         IsActivateToQuest = ((GameObject*)this)->ActivateToQuest(target) || target->isGameMaster();
-		if (((GameObject*)this)->GetGoType() == GAMEOBJECT_TYPE_CHEST && ((GameObject*)this)->GetEntry() == 103821)
+		if (HasFlag(GAMEOBJECT_FLAGS, GO_FLAG_INTERACT_COND))
 		{
-			if (target->HasItemCount(7146, 1, false))
+			if (((GameObject*)this)->GetGoType() == GAMEOBJECT_TYPE_CHEST && ((GameObject*)this)->GetEntry() == 103821)
 			{
-				((GameObject*)this)->SetFlag(GAMEOBJECT_FLAGS, GO_FLAG_INTERACT_COND);
-				canUse = false;
+				if (target->HasItemCount(7146, 1, false))
+					canUse = false;
 			}
-			else
-				((GameObject*)this)->RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_INTERACT_COND);
+
+			QuestRelationsMapBounds bounds = sObjectMgr.GetGOQuestInvolvedRelationsMapBounds(GetEntry());
+			for (QuestRelationsMap::const_iterator itr = bounds.first; itr != bounds.second; ++itr)
+			{
+				if (target->GetQuestStatus(itr->second) == QUEST_STATUS_COMPLETE || target->GetQuestStatus(itr->second) == QUEST_STATUS_NONE)
+				{
+					if (
+						target->GetQuestRewardStatus(itr->second)
+						|| (!target->GetQuestRewardStatus(itr->second) && target->GetQuestStatus(itr->second) == QUEST_STATUS_NONE)
+						)
+					{
+						canUse = false;
+						IsActivateToQuest = false;
+					}
+				}
+			}
 		}
 
         updateMask->SetBit(GAMEOBJECT_DYN_FLAGS);

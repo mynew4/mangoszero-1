@@ -12574,35 +12574,6 @@ void Player::RewardQuest(Quest const* pQuest, uint32 reward, Object* questGiver,
         if (bg->GetTypeID() == BATTLEGROUND_AV)
             { ((BattleGroundAV*)bg)->HandleQuestComplete(pQuest->GetQuestId(), this); }
 
-    if (pQuest->GetRewChoiceItemsCount() > 0)
-    {
-        if (uint32 itemId = pQuest->RewChoiceItemId[reward])
-        {
-            ItemPosCountVec dest;
-            if (CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, itemId, pQuest->RewChoiceItemCount[reward]) == EQUIP_ERR_OK)
-            {
-                Item* item = StoreNewItem(dest, itemId, true, Item::GenerateItemRandomPropertyId(itemId));
-                SendNewItem(item, pQuest->RewChoiceItemCount[reward], true, false);
-            }
-        }
-    }
-
-    if (pQuest->GetRewItemsCount() > 0)
-    {
-        for (uint32 i = 0; i < pQuest->GetRewItemsCount(); ++i)
-        {
-            if (uint32 itemId = pQuest->RewItemId[i])
-            {
-                ItemPosCountVec dest;
-                if (CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, itemId, pQuest->RewItemCount[i]) == EQUIP_ERR_OK)
-                {
-                    Item* item = StoreNewItem(dest, itemId, true, Item::GenerateItemRandomPropertyId(itemId));
-                    SendNewItem(item, pQuest->RewItemCount[i], true, false);
-                }
-            }
-        }
-    }
-
     RewardReputation(pQuest);
 
     uint16 log_slot = FindQuestSlot(quest_id);
@@ -12675,6 +12646,35 @@ void Player::RewardQuest(Quest const* pQuest, uint32 reward, Object* questGiver,
     saBounds = sSpellMgr.GetSpellAreaForAreaMapBounds(0);
     for (SpellAreaForAreaMap::const_iterator itr = saBounds.first; itr != saBounds.second; ++itr)
         { itr->second->ApplyOrRemoveSpellIfCan(this, zone, area, false); }
+
+	if (pQuest->GetRewChoiceItemsCount() > 0)
+	{
+		if (uint32 itemId = pQuest->RewChoiceItemId[reward])
+		{
+			ItemPosCountVec dest;
+			if (CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, itemId, pQuest->RewChoiceItemCount[reward]) == EQUIP_ERR_OK)
+			{
+				Item* item = StoreNewItem(dest, itemId, true, Item::GenerateItemRandomPropertyId(itemId));
+				SendNewItem(item, pQuest->RewChoiceItemCount[reward], true, false);
+			}
+		}
+	}
+
+	if (pQuest->GetRewItemsCount() > 0)
+	{
+		for (uint32 i = 0; i < pQuest->GetRewItemsCount(); ++i)
+		{
+			if (uint32 itemId = pQuest->RewItemId[i])
+			{
+				ItemPosCountVec dest;
+				if (CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, itemId, pQuest->RewItemCount[i]) == EQUIP_ERR_OK)
+				{
+					Item* item = StoreNewItem(dest, itemId, true, Item::GenerateItemRandomPropertyId(itemId));
+					SendNewItem(item, pQuest->RewItemCount[i], true, false);
+				}
+			}
+		}
+	}
 }
 
 void Player::FailQuest(uint32 questId)
