@@ -2229,7 +2229,7 @@ void Pet::ProhibitSpellSchool(SpellSchoolMask idSchoolMask, uint32 unTimeMs)
         {
             msg << uint32(spellInfo->Id);
             msg << uint32(unTimeMs);
-            AddCreatureSpellCooldown(spellInfo->Id, curTime + (unTimeMs / IN_MILLISECONDS));
+            AddCreatureSpellCooldown(spellInfo->Id, unTimeMs);
         }
     }
     pOwner = ((Player*)GetOwner());

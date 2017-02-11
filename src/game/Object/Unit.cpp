@@ -3146,7 +3146,7 @@ void Unit::ProhibitSpellSchool(SpellSchoolMask idSchoolMask, uint32 unTimeMs)
         // Valid SchoolMask and remaining cooldown is less than silence duration.
         if ((idSchoolMask & GetSpellSchoolMask(spellInfo)) && creature->GetCreatureSpellCooldownDelay(spellInfo->Id) < unTimeMs)
         {
-            creature->AddCreatureSpellCooldown(spellInfo->Id, curTime + (unTimeMs / IN_MILLISECONDS));
+            creature->AddCreatureSpellCooldown(spellInfo->Id, unTimeMs);
         }
     }
 }
