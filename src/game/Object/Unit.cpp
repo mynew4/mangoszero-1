@@ -3121,6 +3121,36 @@ void Unit::_UpdateAutoRepeatSpell()
     }
 }
 
+void Unit::ProhibitSpellSchool(SpellSchoolMask idSchoolMask, uint32 unTimeMs)
+{
+    time_t curTime;
+    Creature* creature;
+    SpellEntry const* spellInfo;
+    
+    creature = ((Creature*)this);
+    curTime = time(NULL);
+    for (uint32 i = 0; i < CREATURE_MAX_SPELLS; i++)
+    {
+        if (!creature->m_spells[i])
+            continue;
+
+        spellInfo = sSpellStore.LookupEntry(creature->m_spells[i]);
+        MANGOS_ASSERT(spellInfo);
+        if (spellInfo->HasAttribute(SPELL_ATTR_DISABLED_WHILE_ACTIVE))
+            continue;
+            
+        // These spells can be casted while silenced.
+        if (spellInfo->PreventionType != SPELL_PREVENTION_TYPE_SILENCE)
+            continue;
+        
+        // Valid SchoolMask and remaining cooldown is less than silence duration.
+        if ((idSchoolMask & GetSpellSchoolMask(spellInfo)) && creature->GetCreatureSpellCooldownDelay(spellInfo->Id) < unTimeMs)
+        {
+            creature->AddCreatureSpellCooldown(spellInfo->Id, curTime + (unTimeMs / IN_MILLISECONDS));
+        }
+    }
+}
+
 void Unit::SetCurrentCastedSpell(Spell* pSpell)
 {
     MANGOS_ASSERT(pSpell);                                  // NULL may be never passed here, use InterruptSpell or InterruptNonMeleeSpells

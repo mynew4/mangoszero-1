@@ -65,6 +65,10 @@ CanCastResult CreatureAI::CanCastSpell(Unit* pTarget, const SpellEntry* pSpell, 
         // Check for power (also done by Spell::CheckCast())
         if (m_creature->GetPower((Powers)pSpell->powerType) < Spell::CalculatePowerCost(pSpell, m_creature))
             { return CAST_FAIL_POWER; }
+        
+        // Check for spell cooldown.
+        if (m_creature->HasSpellCooldown(pSpell->Id))
+            { return CAST_FAIL_SILENCED; }
     }
 
     if (!m_creature->IsWithinLOSInMap(pTarget))
